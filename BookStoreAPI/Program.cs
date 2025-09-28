@@ -1,3 +1,5 @@
+using BookStoreAPI.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -14,7 +16,7 @@ builder.Services.AddCors(options =>
 
 });
 
-
+builder.Services.AddDbContext<BookStoreDbContext>(); // add database context
 
 var app = builder.Build();
 

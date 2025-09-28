@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BookStoreAPI.Models
 {
@@ -6,6 +8,26 @@ namespace BookStoreAPI.Models
     {
 
         public int Id { get; set; }
+
+        [Required]
+        [Range(0, double.MaxValue)]
+        public decimal Price { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal DiscountPrice { get; set; }
+
+        public bool HasDiscount { get; set;}
+
+        [Range(0, 100)]
+        [NotMapped]
+        public byte DiscountPercantage 
+        {
+            get
+            {
+                if (!HasDiscount) return 0;
+                return (byte)Math.Round((Price - DiscountPrice) / Price * 100);
+            }
+        }    
 
         [Required]
         public string Title { get; set; } = string.Empty;
@@ -52,7 +74,11 @@ namespace BookStoreAPI.Models
 
         [Required]
         [Range(0,int.MaxValue)]
-        public int Capacity { get; set; }   
+        public int Capacity { get; set; }
+
+        public int BookGenreId { get; set; }
+
+        public BookGenre BookGenre { get; set; } = null!;
 
     }
 
@@ -79,6 +105,7 @@ namespace BookStoreAPI.Models
 
     }
 
+    [Owned]
     public class BookFormat
     {
         [Required]
