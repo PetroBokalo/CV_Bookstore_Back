@@ -18,6 +18,12 @@ namespace BookStoreAPI.Models
         public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
 
         [Required]
+        [Phone]
+        [MaxLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+
+        [Required]
         public Role Role { get; set; } = Role.User;
 
         public string? UserName { get; set; }
