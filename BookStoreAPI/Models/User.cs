@@ -21,12 +21,14 @@ namespace BookStoreAPI.Models
         [Phone]
         [MaxLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
-
+        
 
         [Required]
         public Role Role { get; set; } = Role.User;
 
-        public string? UserName { get; set; }
+        public string? UserFirstName { get; set; }
+
+        public string? UserLastName { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
