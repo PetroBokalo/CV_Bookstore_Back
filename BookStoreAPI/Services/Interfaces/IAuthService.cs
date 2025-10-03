@@ -7,9 +7,9 @@ namespace BookStoreAPI.Services.Interfaces
     public interface IAuthService
     {
 
-        Task<ServiceResult<LoginResponseDto>> RegisterAsync(RegisterUserDto registerUserDto);
+        Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterUserDto registerUserDto);
 
-        Task<ServiceResult<LoginResponseDto>> LoginAsync(LoginUserDto loginUserDto);
+        Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginUserDto loginUserDto);
 
     }
 }

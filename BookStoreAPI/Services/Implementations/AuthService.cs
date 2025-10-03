@@ -16,35 +16,35 @@ namespace BookStoreAPI.Services.Implementations
         }
 
 
-        public async Task<ServiceResult<LoginResponseDto>> LoginAsync(LoginUserDto loginUserDto)
+        public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginUserDto loginUserDto)
         {
             var user = await userRepo.GetByEmailAsync(loginUserDto.Email);
 
             if (user == null)           
-                return ServiceResult<LoginResponseDto>.Fail("Invalid email or password");
+                return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
             
 
             using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
 
             var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(loginUserDto.Password));
             if (!computedHash.SequenceEqual(user.PasswordHash))
-                return ServiceResult<LoginResponseDto>.Fail("Invalid email or password");
+                return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
 
 
             user.LastLogin = DateTime.UtcNow;
             await userRepo.SaveChangesAsync();
 
-            var response = new LoginResponseDto(user.UserFirstName ?? "", user.CreatedAt);
+            var response = new AuthResponseDto(user.UserFirstName ?? "", user.CreatedAt);
 
-            return ServiceResult<LoginResponseDto>.Ok(response, "Login successful");
+            return ServiceResult<AuthResponseDto>.Ok(response, "Login successful");
         }
 
-        public async Task<ServiceResult<LoginResponseDto>> RegisterAsync(RegisterUserDto registerUserDto)
+        public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterUserDto registerUserDto)
         {
 
             if (await userRepo.ExistsByEmail(registerUserDto.Email))
             {
-                return ServiceResult<LoginResponseDto>.Fail("User with this email already exists");
+                return ServiceResult<AuthResponseDto>.Fail("User with this email already exists");
             }
 
             using var hmac = new System.Security.Cryptography.HMACSHA512();
@@ -62,9 +62,9 @@ namespace BookStoreAPI.Services.Implementations
             await userRepo.AddAsync(newUser);
             await userRepo.SaveChangesAsync();
 
-            var responce = new LoginResponseDto(newUser.UserFirstName ?? "", newUser.CreatedAt);
+            var responce = new AuthResponseDto(newUser.UserFirstName ?? "", newUser.CreatedAt);
 
-            return ServiceResult<LoginResponseDto>.Ok(responce, "User registred succesfully");
+            return ServiceResult<AuthResponseDto>.Ok(responce, "User registred succesfully");
                 
         }
     }

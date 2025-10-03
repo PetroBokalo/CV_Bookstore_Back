@@ -1,5 +1,5 @@
 ﻿namespace BookStoreAPI.DTOs
 {
-    public record LoginResponseDto(string UserFirstName, DateTime CreatedAt);
+    public record AuthResponseDto(string UserFirstName, DateTime CreatedAt);
     
 }
