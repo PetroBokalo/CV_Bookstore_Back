@@ -1,6 +1,7 @@
 using BookStoreAPI.Data;
 using BookStoreAPI.Repositories.Implementations;
 using BookStoreAPI.Repositories.Interfaces;
+using BookStoreAPI.Services;
 using BookStoreAPI.Services.Implementations;
 using BookStoreAPI.Services.Interfaces;
 
@@ -23,6 +24,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<BookStoreDbContext>(); // add database context
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<TokenService>();
 
 var app = builder.Build();
 

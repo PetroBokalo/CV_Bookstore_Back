@@ -28,6 +28,21 @@ namespace BookStoreAPI.Controllers
                 return BadRequest(result);
         }
 
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh(TokenDto tokenDto)
+        {
+            var result = await authService.RefreshTokenAsync(tokenDto);
+
+            if (result.Success)
+                return Ok(result);
+
+            return result.StatusCode switch
+            {
+                401 => Unauthorized(),
+                400 => BadRequest(),
+                _ => StatusCode(result.StatusCode, result)
+            };
+        }
 
     }
 }

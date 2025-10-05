@@ -3,16 +3,20 @@ using BookStoreAPI.DTOs;
 using BookStoreAPI.Models;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace BookStoreAPI.Services.Implementations
 {
     public class AuthService : IAuthService
     {
         private readonly IUserRepository userRepo;
+        private readonly TokenService tokenService;
 
-        public AuthService(IUserRepository userRepo)
+        public AuthService(IUserRepository userRepo, TokenService tokenService)
         {
             this.userRepo = userRepo;
+            this.tokenService = tokenService;
         }
 
 
@@ -20,9 +24,9 @@ namespace BookStoreAPI.Services.Implementations
         {
             var user = await userRepo.GetByEmailAsync(loginUserDto.Email);
 
-            if (user == null)           
+            if (user == null)
                 return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
-            
+
 
             using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
 
@@ -39,34 +43,95 @@ namespace BookStoreAPI.Services.Implementations
             return ServiceResult<AuthResponseDto>.Ok(response, "Login successful");
         }
 
-        public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterUserDto registerUserDto)
+        public async Task<ServiceResult<RegisterUserResponceDto>> RegisterAsync(RegisterUserDto registerUserDto)
         {
-
-            if (await userRepo.ExistsByEmail(registerUserDto.Email))
+            try
             {
-                return ServiceResult<AuthResponseDto>.Fail("User with this email already exists");
+                if (await userRepo.ExistsByEmail(registerUserDto.Email))
+                {
+                    return ServiceResult<RegisterUserResponceDto>.Fail("User with this email already exists");
+                }
+
+                using var hmac = new System.Security.Cryptography.HMACSHA512();
+
+                var refreshToken = tokenService.GenerateRefreshToken();
+
+                User newUser = new User()
+                {
+                    UserFirstName = registerUserDto.UserFirstName,
+                    UserLastName = registerUserDto.UserLastName,
+                    PhoneNumber = registerUserDto.PhoneNumber,
+                    Email = registerUserDto.Email,
+                    PasswordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(registerUserDto.Password)),
+                    PasswordSalt = hmac.Key,
+                    LastLogin = DateTime.UtcNow,
+                    RefreshToken = refreshToken,
+                    RefreshTokenExpiry = DateTime.UtcNow.AddDays(7)
+                };
+
+                await userRepo.AddAsync(newUser);
+                await userRepo.SaveChangesAsync();
+
+                var token = tokenService.GenerateAccessToken(newUser);
+
+
+                var responce = new RegisterUserResponceDto(newUser.Id, newUser.Email, newUser.PhoneNumber, newUser.UserFirstName, newUser.UserLastName,
+                    token, "refresh token will do later");
+
+                return ServiceResult<RegisterUserResponceDto>.Ok(responce, "User registred succesfully");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<RegisterUserResponceDto>.Fail("Internal server error: " + ex.Message);
             }
 
-            using var hmac = new System.Security.Cryptography.HMACSHA512();
 
-            User newUser = new User()
-            {
-                UserFirstName = registerUserDto.UserFirstName,
-                UserLastName = registerUserDto.UserLastName,
-                PhoneNumber = registerUserDto.PhoneNumber,
-                Email = registerUserDto.Email,
-                PasswordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(registerUserDto.Password)),
-                PasswordSalt = hmac.Key
-            };
-
-            await userRepo.AddAsync(newUser);
-            await userRepo.SaveChangesAsync();
-
-            var responce = new AuthResponseDto(newUser.UserFirstName ?? "", newUser.CreatedAt);
-
-            return ServiceResult<AuthResponseDto>.Ok(responce, "User registred succesfully");
-                
+            
         }
+
+
+        public async Task<ServiceResult<TokenDto>> RefreshTokenAsync(TokenDto tokenDto)
+        {
+            try
+            {
+                if (tokenDto == null)
+                    return ServiceResult<TokenDto>.Fail("Invalid client request");
+
+                var result_principal = tokenService.GetPrincipalFromExpiredToken(tokenDto.AccessToken);
+                if (!result_principal.Success)
+                    return ServiceResult<TokenDto>.Fail(result_principal.Message);
+
+                var principal = result_principal.Data;
+
+                var userEmail = principal?.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+                if (string.IsNullOrEmpty(userEmail))
+                    return ServiceResult<TokenDto>.Fail("Unauthorized", 401);
+
+                var user = await userRepo.GetByEmailAsync(userEmail);
+                if (user == null || user.RefreshToken != tokenDto.RefreshToken || user.RefreshTokenExpiry <= DateTime.UtcNow)
+                    return ServiceResult<TokenDto>.Fail("Unauthorized", 401);
+
+                var newAccessToken = tokenService.GenerateAccessToken(user);
+                var newRefreshToken = tokenService.GenerateRefreshToken();
+
+                user.RefreshToken = newRefreshToken;
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+
+                await userRepo.SaveChangesAsync();
+
+                var response = new TokenDto(newAccessToken, newRefreshToken);
+
+                return ServiceResult<TokenDto>.Ok(response, "Refreshed");
+            }
+            catch(Exception ex)
+            {
+                return ServiceResult<TokenDto>.Fail("Internal server error: " + ex.Message);
+            }
+                           
+        }
+
+
+
     }
 }
 

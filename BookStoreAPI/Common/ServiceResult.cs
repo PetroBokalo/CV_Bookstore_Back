@@ -8,11 +8,13 @@
 
         public T? Data { get; set; }
 
-        public static ServiceResult<T> Ok(T data, string message = "") =>
-            new ServiceResult<T> { Success = true, Message = message, Data = data};
+        public int StatusCode { get; set; } 
 
-        public static ServiceResult<T> Fail(string message = "") =>
-            new ServiceResult<T> { Success = false, Message = message};
+        public static ServiceResult<T> Ok(T data, string message = "", int statuscode = 200) =>
+            new ServiceResult<T> { Success = true, Message = message, Data = data, StatusCode = statuscode };
+
+        public static ServiceResult<T> Fail(string message = "", int statuscode = 400) =>
+            new ServiceResult<T> { Success = false, Message = message, StatusCode = statuscode };
 
     }
 }
