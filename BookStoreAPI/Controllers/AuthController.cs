@@ -21,11 +21,26 @@ namespace BookStoreAPI.Controllers
         public async Task<IActionResult> Register(RegisterUserDto registerUserDto)
         {
 
-            var result = await authService.RegisterAsync(registerUserDto);
-            if (result.Success)
-                return Created("dummy", result); // замість dummy треба вказати куди йти щоб отримати доступ до клієнта (якийсь endpoint) 
-            else
-                return BadRequest(result);
+            var (result, refreshtoken, expires) = await authService.RegisterAsync(registerUserDto);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            if (string.IsNullOrEmpty(refreshtoken) || expires == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, "Failed to generate refresh token.");
+
+
+            Response.Cookies.Append("refreshToken", refreshtoken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expires
+            });
+
+
+            return Created("dummy", result); // замість dummy треба вказати куди йти щоб отримати доступ до клієнта (якийсь endpoint) 
+
         }
 
         [HttpPost("refresh")]

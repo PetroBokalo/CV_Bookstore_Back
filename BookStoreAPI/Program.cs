@@ -16,8 +16,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddCors(options => 
 {
 
-    options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    options.AddPolicy("AllowFront",
+        policy => policy
+            .WithOrigins("http://127.0.0.1:5500")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
 
 });
 
@@ -28,7 +32,7 @@ builder.Services.AddScoped<TokenService>();
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowFront");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

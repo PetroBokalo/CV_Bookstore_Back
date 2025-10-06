@@ -43,13 +43,15 @@ namespace BookStoreAPI.Services.Implementations
             return ServiceResult<AuthResponseDto>.Ok(response, "Login successful");
         }
 
-        public async Task<ServiceResult<RegisterUserResponceDto>> RegisterAsync(RegisterUserDto registerUserDto)
+        public async Task<(ServiceResult<RegisterUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto)
         {
             try
             {
                 if (await userRepo.ExistsByEmail(registerUserDto.Email))
                 {
-                    return ServiceResult<RegisterUserResponceDto>.Fail("User with this email already exists");
+                    return (ServiceResult<RegisterUserResponceDto>.Fail("User with this email already exists"),
+                            null,
+                            null);
                 }
 
                 using var hmac = new System.Security.Cryptography.HMACSHA512();
@@ -75,14 +77,19 @@ namespace BookStoreAPI.Services.Implementations
                 var token = tokenService.GenerateAccessToken(newUser);
 
 
-                var responce = new RegisterUserResponceDto(newUser.Id, newUser.Email, newUser.PhoneNumber, newUser.UserFirstName, newUser.UserLastName,
-                    token, "refresh token will do later");
+                var userData = new RegisterUserResponceDto(newUser.Id, newUser.Email, newUser.PhoneNumber, newUser.UserFirstName, newUser.UserLastName,
+                    token);
 
-                return ServiceResult<RegisterUserResponceDto>.Ok(responce, "User registred succesfully");
+
+                return (ServiceResult<RegisterUserResponceDto>.Ok(userData, "User registred succesfully"),
+                    newUser.RefreshToken,
+                    newUser.RefreshTokenExpiry);
             }
             catch (Exception ex)
             {
-                return ServiceResult<RegisterUserResponceDto>.Fail("Internal server error: " + ex.Message);
+                return (ServiceResult<RegisterUserResponceDto>.Fail("Internal server error: " + ex.Message),
+                    null,
+                    null);
             }
 
 
