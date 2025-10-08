@@ -7,11 +7,11 @@ namespace BookStoreAPI.Services.Interfaces
     public interface IAuthService
     {
 
-        Task<(ServiceResult<RegisterUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto);
+        Task<(ServiceResult<AuthUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto);
 
-        Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginUserDto loginUserDto);
+        Task<(ServiceResult<AuthUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> LoginAsync(LoginUserDto loginUserDto);
 
-        Task<ServiceResult<TokenDto>> RefreshTokenAsync(TokenDto tokenDto);
+        Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken);
 
     }
 }

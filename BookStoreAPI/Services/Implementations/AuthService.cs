@@ -20,36 +20,48 @@ namespace BookStoreAPI.Services.Implementations
         }
 
 
-        public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginUserDto loginUserDto)
+        public async Task<(ServiceResult<AuthUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> LoginAsync(LoginUserDto loginUserDto)
         {
-            var user = await userRepo.GetByEmailAsync(loginUserDto.Email);
+            try
+            {
+                var user = await userRepo.GetByEmailAsync(loginUserDto.Email);
 
-            if (user == null)
-                return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
-
-
-            using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
-
-            var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(loginUserDto.Password));
-            if (!computedHash.SequenceEqual(user.PasswordHash))
-                return ServiceResult<AuthResponseDto>.Fail("Invalid email or password");
+                if (user == null)
+                    return (ServiceResult<AuthUserResponceDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
 
-            user.LastLogin = DateTime.UtcNow;
-            await userRepo.SaveChangesAsync();
+                using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
 
-            var response = new AuthResponseDto(user.UserFirstName ?? "", user.CreatedAt);
+                var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(loginUserDto.Password));
+                if (!computedHash.SequenceEqual(user.PasswordHash))
+                    return (ServiceResult<AuthUserResponceDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
-            return ServiceResult<AuthResponseDto>.Ok(response, "Login successful");
+                var newAccessToken = tokenService.GenerateAccessToken(user);
+                var newRefreshToken = tokenService.GenerateRefreshToken();
+
+                user.RefreshToken = newRefreshToken;
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+                user.LastLogin = DateTime.UtcNow;
+                await userRepo.SaveChangesAsync();
+
+                var response = new AuthUserResponceDto(user.Id, user.Email, user.PhoneNumber, user.UserFirstName!, user.UserLastName!, newAccessToken);
+
+                return (ServiceResult<AuthUserResponceDto>.Ok(response, "Login successful"), newRefreshToken, user.RefreshTokenExpiry);
+            }
+            catch (Exception ex)
+            {
+                return (ServiceResult<AuthUserResponceDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError), null, null);
+            }
+            
         }
 
-        public async Task<(ServiceResult<RegisterUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto)
+        public async Task<(ServiceResult<AuthUserResponceDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto)
         {
             try
             {
                 if (await userRepo.ExistsByEmail(registerUserDto.Email))
                 {
-                    return (ServiceResult<RegisterUserResponceDto>.Fail("User with this email already exists"),
+                    return (ServiceResult<AuthUserResponceDto>.Fail("User with this email already exists"),
                             null,
                             null);
                 }
@@ -77,17 +89,17 @@ namespace BookStoreAPI.Services.Implementations
                 var token = tokenService.GenerateAccessToken(newUser);
 
 
-                var userData = new RegisterUserResponceDto(newUser.Id, newUser.Email, newUser.PhoneNumber, newUser.UserFirstName, newUser.UserLastName,
+                var userData = new AuthUserResponceDto(newUser.Id, newUser.Email, newUser.PhoneNumber, newUser.UserFirstName, newUser.UserLastName,
                     token);
 
 
-                return (ServiceResult<RegisterUserResponceDto>.Ok(userData, "User registred succesfully"),
+                return (ServiceResult<AuthUserResponceDto>.Ok(userData, "User registred succesfully"),
                     newUser.RefreshToken,
                     newUser.RefreshTokenExpiry);
             }
             catch (Exception ex)
             {
-                return (ServiceResult<RegisterUserResponceDto>.Fail("Internal server error: " + ex.Message),
+                return (ServiceResult<AuthUserResponceDto>.Fail("Internal server error: " + ex.Message),
                     null,
                     null);
             }
@@ -97,42 +109,25 @@ namespace BookStoreAPI.Services.Implementations
         }
 
 
-        public async Task<ServiceResult<TokenDto>> RefreshTokenAsync(TokenDto tokenDto)
+        public async Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken)
         {
             try
             {
-                if (tokenDto == null)
-                    return ServiceResult<TokenDto>.Fail("Invalid client request");
+                var user = await userRepo.GetByRefreshTokenAsync(refreshtoken);
 
-                var result_principal = tokenService.GetPrincipalFromExpiredToken(tokenDto.AccessToken);
-                if (!result_principal.Success)
-                    return ServiceResult<TokenDto>.Fail(result_principal.Message);
+                if (user == null)
+                    return ServiceResult<string>.Fail("Invalid refresh token", StatusCodes.Status404NotFound);
 
-                var principal = result_principal.Data;
-
-                var userEmail = principal?.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
-                if (string.IsNullOrEmpty(userEmail))
-                    return ServiceResult<TokenDto>.Fail("Unauthorized", 401);
-
-                var user = await userRepo.GetByEmailAsync(userEmail);
-                if (user == null || user.RefreshToken != tokenDto.RefreshToken || user.RefreshTokenExpiry <= DateTime.UtcNow)
-                    return ServiceResult<TokenDto>.Fail("Unauthorized", 401);
+                if (user.RefreshTokenExpiry <= DateTime.UtcNow)
+                    return ServiceResult<string>.Fail("Refresh token is expired", StatusCodes.Status401Unauthorized);
 
                 var newAccessToken = tokenService.GenerateAccessToken(user);
-                var newRefreshToken = tokenService.GenerateRefreshToken();
 
-                user.RefreshToken = newRefreshToken;
-                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-
-                await userRepo.SaveChangesAsync();
-
-                var response = new TokenDto(newAccessToken, newRefreshToken);
-
-                return ServiceResult<TokenDto>.Ok(response, "Refreshed");
+                return ServiceResult<string>.Ok(newAccessToken, "Access token is refreshed");
             }
             catch(Exception ex)
             {
-                return ServiceResult<TokenDto>.Fail("Internal server error: " + ex.Message);
+                return ServiceResult<string>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError);
             }
                            
         }

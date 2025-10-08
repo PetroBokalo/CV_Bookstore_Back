@@ -21,12 +21,12 @@ namespace BookStoreAPI.Controllers
         public async Task<IActionResult> Register(RegisterUserDto registerUserDto)
         {
 
-            var (result, refreshtoken, expires) = await authService.RegisterAsync(registerUserDto);
+            var (result, refreshtoken, expiry) = await authService.RegisterAsync(registerUserDto);
 
             if (!result.Success)
                 return BadRequest(result.Message);
 
-            if (string.IsNullOrEmpty(refreshtoken) || expires == null)
+            if (string.IsNullOrEmpty(refreshtoken) || expiry == null)
                 return StatusCode(StatusCodes.Status500InternalServerError, "Failed to generate refresh token.");
 
 
@@ -35,7 +35,7 @@ namespace BookStoreAPI.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.None,
-                Expires = expires
+                Expires = expiry
             });
 
 
@@ -43,20 +43,42 @@ namespace BookStoreAPI.Controllers
 
         }
 
-        [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh(TokenDto tokenDto)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody]LoginUserDto loginUserDto)
         {
-            var result = await authService.RefreshTokenAsync(tokenDto);
+            var (result, refreshToken, expiry) = await authService.LoginAsync(loginUserDto);
 
-            if (result.Success)
-                return Ok(result);
+            if (!result.Success)
+                return StatusCode(result.StatusCode, result.Message);
 
-            return result.StatusCode switch
+            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, "Failed to generate refresh token.");
+
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
             {
-                401 => Unauthorized(),
-                400 => BadRequest(),
-                _ => StatusCode(result.StatusCode, result)
-            };
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expiry
+            });
+
+            return Ok(result.Data);
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+
+            if (string.IsNullOrEmpty(refreshToken))
+                return Unauthorized("Missing refresh token");
+
+            var result = await authService.RefreshTokenAsync(refreshToken);
+           
+            if (result.Success)
+                return Ok(result.Data);
+
+            return StatusCode(result.StatusCode, result.Message);
         }
 
     }

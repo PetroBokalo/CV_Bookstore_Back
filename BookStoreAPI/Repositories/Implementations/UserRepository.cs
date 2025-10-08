@@ -27,6 +27,10 @@ namespace BookStoreAPI.Repositories.Implementations
         public async Task<User?> GetByEmailAsync(string email) =>
              await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
 
+        public async Task<User?> GetByRefreshTokenAsync(string refreshToken) =>
+            await _dbContext.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+
+
         public async Task SaveChangesAsync() =>
             await _dbContext.SaveChangesAsync();
        
