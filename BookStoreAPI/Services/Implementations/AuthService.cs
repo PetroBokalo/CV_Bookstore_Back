@@ -61,7 +61,7 @@ namespace BookStoreAPI.Services.Implementations
             {
                 if (await userRepo.ExistsByEmail(registerUserDto.Email))
                 {
-                    return (ServiceResult<AuthUserResponceDto>.Fail("User with this email already exists"),
+                    return (ServiceResult<AuthUserResponceDto>.Fail("User with this email already exists", StatusCodes.Status400BadRequest),
                             null,
                             null);
                 }
@@ -93,13 +93,13 @@ namespace BookStoreAPI.Services.Implementations
                     token);
 
 
-                return (ServiceResult<AuthUserResponceDto>.Ok(userData, "User registred succesfully"),
+                return (ServiceResult<AuthUserResponceDto>.Ok(userData, "User registred succesfully", StatusCodes.Status201Created),
                     newUser.RefreshToken,
                     newUser.RefreshTokenExpiry);
             }
             catch (Exception ex)
             {
-                return (ServiceResult<AuthUserResponceDto>.Fail("Internal server error: " + ex.Message),
+                return (ServiceResult<AuthUserResponceDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError),
                     null,
                     null);
             }

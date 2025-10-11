@@ -24,10 +24,10 @@ namespace BookStoreAPI.Controllers
             var (result, refreshtoken, expiry) = await authService.RegisterAsync(registerUserDto);
 
             if (!result.Success)
-                return BadRequest(result.Message);
+                return StatusCode(result.StatusCode, new { message = result.Message });
 
             if (string.IsNullOrEmpty(refreshtoken) || expiry == null)
-                return StatusCode(StatusCodes.Status500InternalServerError, "Failed to generate refresh token.");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
 
 
             Response.Cookies.Append("refreshToken", refreshtoken, new CookieOptions
@@ -39,7 +39,7 @@ namespace BookStoreAPI.Controllers
             });
 
 
-            return Created("dummy", result); // замість dummy треба вказати куди йти щоб отримати доступ до клієнта (якийсь endpoint) 
+            return Created("dummy", result.Data); // замість dummy треба вказати куди йти щоб отримати доступ до клієнта (якийсь endpoint) 
 
         }
 
