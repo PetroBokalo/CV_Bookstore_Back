@@ -27,5 +27,7 @@ namespace BookStoreAPI.Data
 
         public DbSet<BookGenre> BookGenres { get; set; }
 
+        public DbSet<VerifyEmailToken> VerifyEmailTokens { get; set; }
+
     }
 }

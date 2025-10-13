@@ -36,7 +36,7 @@ namespace BookStoreAPI.Models
 
         public DateTime? EmailConfirmedAt { get; set; }
 
-        public bool IsEmailConfirmed => EmailConfirmedAt.HasValue;
+        public bool IsEmailConfirmed => EmailConfirmedAt.HasValue; // possibly useless
 
       
         public bool IsBanned { get; set; } = false;
