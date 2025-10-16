@@ -18,14 +18,19 @@ namespace BookStoreAPI.Repositories.Implementations
 
         public async Task AddAsync(User user) =>       
             await _dbContext.AddAsync(user);
-            
 
         public async Task<bool> ExistsByEmail(string email) =>
             await _dbContext.Users.AnyAsync(u => u.Email == email);
 
+        public async Task<bool> ExistsByIdAsync(int id) =>
+            await _dbContext.Users.AnyAsync(u => u.Id == id);
+
 
         public async Task<User?> GetByEmailAsync(string email) =>
              await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+        public async Task<User?> GetByIdAsync(int id) =>
+            await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
 
         public async Task<User?> GetByRefreshTokenAsync(string refreshToken) =>
             await _dbContext.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);

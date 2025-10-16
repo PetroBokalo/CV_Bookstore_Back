@@ -26,9 +26,11 @@ namespace BookStoreAPI.Models
         [Required]
         public Role Role { get; set; } = Role.User;
 
-        public string? UserFirstName { get; set; }
+        [Required]
+        public string? UserFirstName { get; set; } = string.Empty;
 
-        public string? UserLastName { get; set; }
+        [Required]
+        public string? UserLastName { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

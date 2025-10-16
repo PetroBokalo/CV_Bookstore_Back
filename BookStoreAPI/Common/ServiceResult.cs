@@ -16,5 +16,8 @@
         public static ServiceResult<T> Fail(string message = "", int statuscode = 400) =>
             new ServiceResult<T> { Success = false, Message = message, StatusCode = statuscode };
 
+        public static ServiceResult<T> Fail(T data, string message = "", int statuscode = 400) =>
+            new ServiceResult<T> {Success = false, Data = data, Message = message, StatusCode = statuscode };
+
     }
 }

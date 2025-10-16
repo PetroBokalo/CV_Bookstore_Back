@@ -1,4 +1,5 @@
 using BookStoreAPI.Data;
+using BookStoreAPI.Models2;
 using BookStoreAPI.Repositories.Implementations;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services;
@@ -31,8 +32,15 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<BookStoreDbContext>(); // add database context
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IVerifyTokenRepository, VerifyTokenRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<EmailService>();
+
+// Mail config
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<EmailSettings>();
 
 // Jwt Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>

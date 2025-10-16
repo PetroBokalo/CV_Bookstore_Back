@@ -3,6 +3,7 @@ using BookStoreAPI.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace BookStoreAPI.Services
@@ -56,6 +57,16 @@ namespace BookStoreAPI.Services
             rng.GetBytes(randomNumber);
 
             return Convert.ToBase64String(randomNumber);
+        }
+
+        public string? GenerateVerifyToken()
+        {
+            var bytes = new byte[4];
+            RandomNumberGenerator.Fill(bytes);
+            int value = BitConverter.ToInt32(bytes, 0);
+            value = Math.Abs(value % 1000000);
+            var code = value.ToString("D6");
+            return code;
         }
 
         public ServiceResult<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token)
