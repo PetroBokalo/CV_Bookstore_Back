@@ -1,4 +1,5 @@
 using BookStoreAPI.Data;
+using BookStoreAPI.Entities;
 using BookStoreAPI.Models;
 using BookStoreAPI.Repositories.Implementations;
 using BookStoreAPI.Repositories.Interfaces;
@@ -6,6 +7,8 @@ using BookStoreAPI.Services;
 using BookStoreAPI.Services.Implementations;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -30,10 +33,26 @@ builder.Services.AddCors(options =>
 
 });
 
-builder.Services.AddDbContext<BookStoreDbContext>(); // add database context
+builder.Services.AddDbContext<BookStoreDbContext>(options => 
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL"))); // add database context
+
+builder.Services.AddIdentity<AppUser, IdentityRole<int>>(options =>
+{
+    options.Password.RequiredLength = 6;
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+})
+    .AddEntityFrameworkStores<BookStoreDbContext>()
+    .AddDefaultTokenProviders();
+    
+
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IVerifyTokenRepository, VerifyTokenRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IResetPasswordTokenRepository, ResetPasswordTokenRepository>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<EmailService>();
 

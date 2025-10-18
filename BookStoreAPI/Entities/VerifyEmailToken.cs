@@ -5,9 +5,9 @@
 
         public int Id { get; set; }
 
-        public int UserId { get; set; }
+        public int AppUserId { get; set; }
 
-        public User User { get; set; } = null!;
+        public AppUser AppUser { get; set; } = null!;
 
         public string Code { get; set; } = string.Empty;
 

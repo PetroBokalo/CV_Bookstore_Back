@@ -47,7 +47,6 @@ namespace BookStoreAPI.Entities
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiry { get; set; }
 
-        public Cart Cart { get; set; } = null!;
 
     }
 

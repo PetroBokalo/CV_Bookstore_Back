@@ -26,14 +26,29 @@ namespace BookStoreAPI.Repositories.Implementations
             await _dbContext.Users.AnyAsync(u => u.Id == id);
 
 
-        public async Task<User?> GetByEmailAsync(string email) =>
-             await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+        public Task<User?> GetByEmailAsync(string email)
+        {
+            throw new NotImplementedException();
+        }
 
-        public async Task<User?> GetByIdAsync(int id) =>
-            await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        public  Task<User?> GetByIdAsync(int id)
+        {
+            throw new NotImplementedException();
+        }
 
-        public async Task<User?> GetByRefreshTokenAsync(string refreshToken) =>
-            await _dbContext.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+        public  Task<User?> GetByRefreshTokenAsync(string refreshToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        //public async Task<User?> GetByEmailAsync(string email) =>
+        //     await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+        //public async Task<User?> GetByIdAsync(int id) =>
+        //    await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+
+        //public async Task<User?> GetByRefreshTokenAsync(string refreshToken) =>
+        //    await _dbContext.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
 
 
         public async Task SaveChangesAsync() =>

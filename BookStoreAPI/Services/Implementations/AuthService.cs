@@ -105,7 +105,7 @@ namespace BookStoreAPI.Services.Implementations
 
                 VerifyEmailToken verifyToken = new()
                 {
-                    UserId = newUser.Id,
+                    //UserId = newUser.Id,
                     IsUsed = false,
                     Attemps = verifyTokenAttemps,
                     Code = code,
@@ -254,7 +254,7 @@ namespace BookStoreAPI.Services.Implementations
                     Token = token,
                     ExpiresAt = resetPasswordTokenExpiry,
                     IsUsed = false,
-                    UserId = user.Id
+                    //UserId = user.Id
                 };
 
 

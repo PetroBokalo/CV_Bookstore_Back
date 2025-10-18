@@ -17,12 +17,23 @@ namespace BookStoreAPI.Repositories.Implementations
         public async Task AddAsync(ResetPasswordToken token) =>
             await _dbContext.ResetPasswordTokens.AddAsync(token);
 
-        public async Task<bool> ExistsByIdAsync(int userId) =>
-            await _dbContext.ResetPasswordTokens.AnyAsync(token => token.UserId == userId);
+
+        public  Task<bool> ExistsByIdAsync(int userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public  Task<ResetPasswordToken?> GetByIdAsync(int userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        //public async Task<bool> ExistsByIdAsync(int userId) =>
+        //    await _dbContext.ResetPasswordTokens.AnyAsync(token => token.UserId == userId);
 
 
-        public async Task<ResetPasswordToken?> GetByIdAsync(int userId) =>
-            await _dbContext.ResetPasswordTokens.FirstOrDefaultAsync(token => token.UserId == userId);
+        //public async Task<ResetPasswordToken?> GetByIdAsync(int userId) =>
+        //    await _dbContext.ResetPasswordTokens.FirstOrDefaultAsync(token => token.UserId == userId);
 
 
         public async Task SaveChangesAsync() =>
