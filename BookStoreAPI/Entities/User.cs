@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.Models
+namespace BookStoreAPI.Entities
 {
     public class User
     {
@@ -26,9 +26,11 @@ namespace BookStoreAPI.Models
         [Required]
         public Role Role { get; set; } = Role.User;
 
-        public string? UserFirstName { get; set; }
+        [Required]
+        public string? UserFirstName { get; set; } = string.Empty;
 
-        public string? UserLastName { get; set; }
+        [Required]
+        public string? UserLastName { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -36,7 +38,7 @@ namespace BookStoreAPI.Models
 
         public DateTime? EmailConfirmedAt { get; set; }
 
-        public bool IsEmailConfirmed => EmailConfirmedAt.HasValue;
+        public bool IsEmailConfirmed => EmailConfirmedAt.HasValue; // possibly useless
 
       
         public bool IsBanned { get; set; } = false;
@@ -45,7 +47,6 @@ namespace BookStoreAPI.Models
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiry { get; set; }
 
-        public Cart Cart { get; set; } = null!;
 
     }
 
