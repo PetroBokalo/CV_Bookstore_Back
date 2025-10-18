@@ -1,6 +1,6 @@
 ﻿using BookStoreAPI.Common;
 using BookStoreAPI.DTOs;
-using BookStoreAPI.Models;
+using BookStoreAPI.Entities;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
 using System.Security.Claims;
@@ -13,18 +13,21 @@ namespace BookStoreAPI.Services.Implementations
     {
         private readonly int verifyTokenAttemps = 5;
         private readonly DateTime verifyTokenExpiry = DateTime.UtcNow.AddMinutes(15);
+        private readonly DateTime resetPasswordTokenExpiry = DateTime.UtcNow.AddMinutes(30);
 
         private readonly IUserRepository userRepo;
         private readonly IVerifyTokenRepository verifyTokenRepo;
+        private readonly IResetPasswordTokenRepository resetPasswordTokenRepo;
         private readonly TokenService tokenService;
         private readonly EmailService emailService;
 
-        public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService)
+        public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService, IResetPasswordTokenRepository resetPasswordTokenRepo)
         {
             this.userRepo = userRepo;
             this.verifyTokenRepo = verifyTokenRepo;
             this.tokenService = tokenService;
             this.emailService = emailService;
+            this.resetPasswordTokenRepo = resetPasswordTokenRepo;
         }
 
 
@@ -233,8 +236,46 @@ namespace BookStoreAPI.Services.Implementations
 
         }
 
+        public async Task<ServiceResult<ForgotPasswordResponseDto>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto)
+        {
+            try
+            {
+                var user = await userRepo.GetByEmailAsync(forgotPasswordDto.Email);
+
+                if (user == null)
+                    return ServiceResult<ForgotPasswordResponseDto>.Fail("Invalid data", StatusCodes.Status400BadRequest);
+
+                // TODO: generate 
+
+                var token = "new token";
+
+                var resetPasswordToken = new ResetPasswordToken
+                {
+                    Token = token,
+                    ExpiresAt = resetPasswordTokenExpiry,
+                    IsUsed = false,
+                    UserId = user.Id
+                };
 
 
+
+                // TODO: generate link 
+
+                var link = "Here will be your link";
+                var link_expiry = DateTime.UtcNow.AddMinutes(30);
+
+                await emailService.SendResetPasswordLinkAsync(forgotPasswordDto.Email, link, link_expiry.ToLocalTime());
+
+                var response = new ForgotPasswordResponseDto(forgotPasswordDto.Email);
+
+                return ServiceResult<ForgotPasswordResponseDto>.Ok(response, "Reset password link is sent");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<ForgotPasswordResponseDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError);
+            }
+
+        }
     }
 }
 

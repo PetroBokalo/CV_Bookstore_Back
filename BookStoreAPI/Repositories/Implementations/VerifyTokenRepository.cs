@@ -1,5 +1,5 @@
 ﻿using BookStoreAPI.Data;
-using BookStoreAPI.Models;
+using BookStoreAPI.Entities;
 using BookStoreAPI.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 

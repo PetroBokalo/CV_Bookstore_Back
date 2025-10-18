@@ -104,6 +104,18 @@ namespace BookStoreAPI.Controllers
 
         }
 
+        [HttpPost("forgotpassword")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
+        {
+            var result = await authService.ForgotPasswordAsync(forgotPasswordDto);
+
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new {message = result.Message});
+
+            return Ok(result.Data);
+
+        }
+
 
     }
 }

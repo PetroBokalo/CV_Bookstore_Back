@@ -1,4 +1,4 @@
-﻿namespace BookStoreAPI.Models
+﻿namespace BookStoreAPI.Entities
 {
     public class Order
     {

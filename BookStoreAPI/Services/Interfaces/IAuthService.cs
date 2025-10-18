@@ -17,6 +17,8 @@ namespace BookStoreAPI.Services.Interfaces
 
         Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken);
 
+        Task<ServiceResult<ForgotPasswordResponseDto>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto);
+
     }
 }
  

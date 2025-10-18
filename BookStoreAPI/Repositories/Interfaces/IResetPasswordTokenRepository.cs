@@ -2,12 +2,11 @@
 
 namespace BookStoreAPI.Repositories.Interfaces
 {
-    public interface IVerifyTokenRepository
+    public interface IResetPasswordTokenRepository
     {
-        Task AddAsync(VerifyEmailToken token);
-        Task<VerifyEmailToken?> GetByIdAsync(int userId);
+        Task AddAsync(ResetPasswordToken token);
         Task<bool> ExistsByIdAsync(int userId);
+        Task<ResetPasswordToken?> GetByIdAsync(int userId);
         Task SaveChangesAsync();
-
     }
 }

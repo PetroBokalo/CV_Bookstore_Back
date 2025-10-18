@@ -1,4 +1,4 @@
-﻿using BookStoreAPI.Models;
+﻿using BookStoreAPI.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookStoreAPI.Data
@@ -28,6 +28,8 @@ namespace BookStoreAPI.Data
         public DbSet<BookGenre> BookGenres { get; set; }
 
         public DbSet<VerifyEmailToken> VerifyEmailTokens { get; set; }
+
+        public DbSet<ResetPasswordToken> ResetPasswordTokens { get; set; }
 
     }
 }

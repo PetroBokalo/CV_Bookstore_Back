@@ -1,6 +1,8 @@
-﻿namespace BookStoreAPI.Entities
+﻿using BookStoreAPI.Entities;
+
+namespace BookStoreAPI.Entities
 {
-    public class VerifyEmailToken
+    public class ResetPasswordToken
     {
 
         public int Id { get; set; }
@@ -9,16 +11,14 @@
 
         public User User { get; set; } = null!;
 
-        public string Code { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
 
         public DateTime ExpiresAt { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public bool IsUsed { get; set; }
-
-        public int Attemps { get; set; } 
+        
 
     }
 }
- 

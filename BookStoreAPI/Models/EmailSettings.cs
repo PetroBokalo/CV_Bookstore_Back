@@ -1,4 +1,4 @@
-﻿namespace BookStoreAPI.Models2
+﻿namespace BookStoreAPI.Models
 {
     public class EmailSettings
     {
