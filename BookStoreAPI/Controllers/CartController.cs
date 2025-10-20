@@ -1,5 +1,6 @@
 ﻿using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,8 +22,8 @@ namespace BookStoreAPI.Controllers
         }
 
 
-        [HttpGet("temp")] 
-        [Authorize]
+        [HttpGet("temp")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public IActionResult GetTempdata()
         {
             var email = User.FindFirst(ClaimTypes.Email)?.Value;

@@ -25,13 +25,13 @@ namespace BookStoreAPI.Services
 
         }
 
-        public string GenerateAccessToken(User user)
+        public string GenerateAccessToken(AppUser user)
         {
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim("role", "User")
+                new Claim(ClaimTypes.Email, user.Email!),
+                new Claim("role", "AppUser")
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));

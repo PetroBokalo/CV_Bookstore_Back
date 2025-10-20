@@ -47,7 +47,23 @@ builder.Services.AddIdentity<AppUser, IdentityRole<int>>(options =>
     .AddEntityFrameworkStores<BookStoreDbContext>()
     .AddDefaultTokenProviders();
     
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // Не редіректити на /Account/Login — просто повертати 401
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
 
+
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+
+});
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IVerifyTokenRepository, VerifyTokenRepository>();

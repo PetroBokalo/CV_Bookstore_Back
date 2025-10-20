@@ -3,8 +3,10 @@ using BookStoreAPI.DTOs;
 using BookStoreAPI.Entities;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace BookStoreAPI.Services.Implementations
@@ -18,16 +20,21 @@ namespace BookStoreAPI.Services.Implementations
         private readonly IUserRepository userRepo;
         private readonly IVerifyTokenRepository verifyTokenRepo;
         private readonly IResetPasswordTokenRepository resetPasswordTokenRepo;
+
+        private readonly UserManager<AppUser> userManager;
+
         private readonly TokenService tokenService;
         private readonly EmailService emailService;
 
-        public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService, IResetPasswordTokenRepository resetPasswordTokenRepo)
+        public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService,
+            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager)
         {
             this.userRepo = userRepo;
             this.verifyTokenRepo = verifyTokenRepo;
             this.tokenService = tokenService;
             this.emailService = emailService;
             this.resetPasswordTokenRepo = resetPasswordTokenRepo;
+            this.userManager = userManager;
         }
 
 
@@ -35,33 +42,32 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
-                var user = await userRepo.GetByEmailAsync(loginUserDto.Email);
+                var user = await userManager.FindByEmailAsync(loginUserDto.Email);
 
                 if (user == null)
                     return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
+                
 
-                using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
-
-                var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(loginUserDto.Password));
-                if (!computedHash.SequenceEqual(user.PasswordHash))
+                if (! await userManager.CheckPasswordAsync(user, loginUserDto.Password))
                     return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
-                if (!user.IsEmailConfirmed)
+                if (!user.EmailConfirmed)
                 {
-                    var errorResponse = new AuthUserResponseDto(user.Id, user.Email, string.Empty, string.Empty, string.Empty, string.Empty);
-                    return (ServiceResult<AuthUserResponseDto>.Fail(errorResponse,"Email isn't verified", StatusCodes.Status403Forbidden), null, null);
+                    var errorResponse = new AuthUserResponseDto(user.Id, user.Email!, string.Empty, string.Empty, string.Empty, string.Empty);
+                    return (ServiceResult<AuthUserResponseDto>.Fail(errorResponse, "Email isn't verified", StatusCodes.Status403Forbidden), null, null);
                 }
-                    
+
                 var newAccessToken = tokenService.GenerateAccessToken(user);
                 var newRefreshToken = tokenService.GenerateRefreshToken();
 
                 user.RefreshToken = newRefreshToken;
                 user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
                 user.LastLogin = DateTime.UtcNow;
-                await userRepo.SaveChangesAsync();
 
-                var response = new AuthUserResponseDto(user.Id, user.Email, user.PhoneNumber, user.UserFirstName!, user.UserLastName!, newAccessToken);
+                await userManager.UpdateAsync(user);
+
+                var response = new AuthUserResponseDto(user.Id, user.Email!, user.PhoneNumber!, user.UserFirstName!, user.UserLastName!, newAccessToken);
 
                 return (ServiceResult<AuthUserResponseDto>.Ok(response, "Login successful"), newRefreshToken, user.RefreshTokenExpiry);
             }
@@ -76,25 +82,24 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
-                if (await userRepo.ExistsByEmail(registerUserDto.Email))
-                {
-                    return ServiceResult<RegisterResponseDto>.Fail("User with this email already exists", StatusCodes.Status400BadRequest);
-                }
 
-                using var hmac = new System.Security.Cryptography.HMACSHA512();
-
-                User newUser = new User()
-                {
+                var newUser = new AppUser()
+                { 
                     UserFirstName = registerUserDto.UserFirstName,
                     UserLastName = registerUserDto.UserLastName,
                     PhoneNumber = registerUserDto.PhoneNumber,
                     Email = registerUserDto.Email,
-                    PasswordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(registerUserDto.Password)),
-                    PasswordSalt = hmac.Key,
+                    UserName = registerUserDto.Email
                 };
 
-                await userRepo.AddAsync(newUser);
-                await userRepo.SaveChangesAsync();
+                var result = await userManager.CreateAsync(newUser, registerUserDto.Password);
+
+                if (!result.Succeeded)
+                {
+                    var errormsg = string.Join("; ", result.Errors.Select(e => e.Description));
+                    return ServiceResult<RegisterResponseDto>.Fail(errormsg, StatusCodes.Status400BadRequest);
+                }
+
 
                 // create Verify token
 
@@ -105,13 +110,15 @@ namespace BookStoreAPI.Services.Implementations
 
                 VerifyEmailToken verifyToken = new()
                 {
-                    //UserId = newUser.Id,
+                    AppUserId = newUser.Id,
                     IsUsed = false,
                     Attemps = verifyTokenAttemps,
                     Code = code,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = verifyTokenExpiry
+                    ExpiresAt = verifyTokenExpiry               
                 };
+
+
 
                 await verifyTokenRepo.AddAsync(verifyToken);
                 await verifyTokenRepo.SaveChangesAsync();
@@ -136,7 +143,7 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
-                var user = await userRepo.GetByRefreshTokenAsync(refreshtoken);
+                var user = await userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshtoken);
 
                 if (user == null)
                     return ServiceResult<string>.Fail("Invalid refresh token", StatusCodes.Status404NotFound);
@@ -182,25 +189,30 @@ namespace BookStoreAPI.Services.Implementations
 
                 // generate tokens and fill response dto
 
-                var user = await userRepo.GetByIdAsync(verifyDto.UserId);
+                var user = await userManager.FindByIdAsync(verifyDto.UserId.ToString());
+
+                if (user == null)
+                    return (ServiceResult<AuthUserResponseDto>.Fail("User not found", StatusCodes.Status404NotFound), null, null);
 
                 var accessToken = tokenService.GenerateAccessToken(user!);
+
                 var refreshToken = tokenService.GenerateRefreshToken();
                 var expiry = DateTime.UtcNow.AddDays(7);
 
-                user!.EmailConfirmedAt = DateTime.UtcNow;
+                user.EmailConfirmed = true;
                 user.LastLogin = DateTime.UtcNow;
                 user.RefreshToken = refreshToken;
                 user.RefreshTokenExpiry = expiry;
-                await userRepo.SaveChangesAsync();
 
-                
+                await userManager.UpdateAsync(user);
 
-                AuthUserResponseDto response = new(user.Id, user.Email, user.PhoneNumber, user.UserFirstName!, user.UserLastName!, accessToken);
+
+
+                AuthUserResponseDto response = new(user.Id, user.Email!, user.PhoneNumber!, user.UserFirstName!, user.UserLastName!, accessToken);
 
                 return (ServiceResult<AuthUserResponseDto>.Ok(response, "User is verified"), refreshToken, expiry);
             }
-                
+
         }
 
         public async Task<ServiceResult<string>> Resend(ResendDto resendDto)
@@ -225,14 +237,14 @@ namespace BookStoreAPI.Services.Implementations
 
             await verifyTokenRepo.SaveChangesAsync();
 
-            var user = await userRepo.GetByIdAsync(resendDto.UserId);
+            var user = await userManager.FindByIdAsync(resendDto.UserId.ToString());
             if (user == null)
                 return ServiceResult<string>.Fail("Unauthorized", StatusCodes.Status401Unauthorized);
 
 
-            await emailService.SendVerificationCodeAsync(user.Email, newCode, verifyTokenExpiry);
+            await emailService.SendVerificationCodeAsync(user.Email!, newCode, verifyTokenExpiry);
 
-            return ServiceResult<string>.Ok(string.Empty); 
+            return ServiceResult<string>.Ok(string.Empty);
 
         }
 

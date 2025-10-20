@@ -17,16 +17,12 @@ namespace BookStoreAPI.Repositories.Implementations
         public async Task AddAsync(VerifyEmailToken token) =>
             await _dbContext.VerifyEmailTokens.AddAsync(token);
 
-        public  Task<bool> ExistsByIdAsync(int userId) => throw new NotImplementedException();
-
-        public  Task<VerifyEmailToken?> GetByIdAsync(int userId) => throw new NotImplementedException();
-
-        //public async Task<bool> ExistsByIdAsync(int userId) =>
-        //    await _dbContext.VerifyEmailTokens.AnyAsync(token => token.UserId == userId);
+        public async Task<bool> ExistsByIdAsync(int userId) =>
+            await _dbContext.VerifyEmailTokens.AnyAsync(token => token.AppUserId == userId);
 
 
-        //public async Task<VerifyEmailToken?> GetByIdAsync(int userId) =>
-        //    await _dbContext.VerifyEmailTokens.FirstOrDefaultAsync(token => token.UserId == userId);
+        public async Task<VerifyEmailToken?> GetByIdAsync(int userId) =>
+            await _dbContext.VerifyEmailTokens.FirstOrDefaultAsync(token => token.AppUserId == userId);
 
 
         public async Task SaveChangesAsync() =>
