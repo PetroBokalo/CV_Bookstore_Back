@@ -5,6 +5,7 @@ using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -20,6 +21,7 @@ namespace BookStoreAPI.Services.Implementations
         private readonly IUserRepository userRepo;
         private readonly IVerifyTokenRepository verifyTokenRepo;
         private readonly IResetPasswordTokenRepository resetPasswordTokenRepo;
+        private readonly IOptions<DataProtectionTokenProviderOptions> tokenOp;
 
         private readonly UserManager<AppUser> userManager;
 
@@ -27,7 +29,7 @@ namespace BookStoreAPI.Services.Implementations
         private readonly EmailService emailService;
 
         public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService,
-            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager)
+            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager, IOptions<DataProtectionTokenProviderOptions> tokenOp)
         {
             this.userRepo = userRepo;
             this.verifyTokenRepo = verifyTokenRepo;
@@ -35,6 +37,7 @@ namespace BookStoreAPI.Services.Implementations
             this.emailService = emailService;
             this.resetPasswordTokenRepo = resetPasswordTokenRepo;
             this.userManager = userManager;
+            this.tokenOp = tokenOp;
         }
 
 
@@ -215,18 +218,18 @@ namespace BookStoreAPI.Services.Implementations
 
         }
 
-        public async Task<ServiceResult<string>> Resend(ResendDto resendDto)
+        public async Task<ServiceResult> Resend(ResendDto resendDto)
         {
             if (resendDto.UserId < 0)
-                return ServiceResult<string>.Fail("Invalid data", StatusCodes.Status400BadRequest);
+                return ServiceResult.Fail("Invalid data", StatusCodes.Status400BadRequest);
 
             if (!await verifyTokenRepo.ExistsByIdAsync(resendDto.UserId))
-                return ServiceResult<string>.Fail("Unauthorized", StatusCodes.Status401Unauthorized);
+                return ServiceResult.Fail("Unauthorized", StatusCodes.Status401Unauthorized);
 
             var newCode = tokenService.GenerateVerifyToken();
 
             if (newCode == null)
-                return ServiceResult<string>.Fail("Failed to generate verify token", StatusCodes.Status500InternalServerError);
+                return ServiceResult.Fail("Failed to generate verify token", StatusCodes.Status500InternalServerError);
 
             var token = await verifyTokenRepo.GetByIdAsync(resendDto.UserId);
             token!.ExpiresAt = verifyTokenExpiry;
@@ -239,12 +242,12 @@ namespace BookStoreAPI.Services.Implementations
 
             var user = await userManager.FindByIdAsync(resendDto.UserId.ToString());
             if (user == null)
-                return ServiceResult<string>.Fail("Unauthorized", StatusCodes.Status401Unauthorized);
+                return ServiceResult.Fail("Unauthorized", StatusCodes.Status401Unauthorized);
 
 
             await emailService.SendVerificationCodeAsync(user.Email!, newCode, verifyTokenExpiry);
 
-            return ServiceResult<string>.Ok(string.Empty);
+            return ServiceResult.Ok();
 
         }
 
@@ -252,31 +255,17 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
-                var user = await userRepo.GetByEmailAsync(forgotPasswordDto.Email);
+                var user = await userManager.FindByEmailAsync(forgotPasswordDto.Email);
 
                 if (user == null)
                     return ServiceResult<ForgotPasswordResponseDto>.Fail("Invalid data", StatusCodes.Status400BadRequest);
 
-                // TODO: generate 
+                var token = await userManager.GeneratePasswordResetTokenAsync(user);
+                var token_lifespan = tokenOp.Value.TokenLifespan;
 
-                var token = "new token";
+                var link = $"{forgotPasswordDto.UserURI}?token={Uri.EscapeDataString(token)}&email={Uri.UnescapeDataString(user.Email!)}";
 
-                var resetPasswordToken = new ResetPasswordToken
-                {
-                    Token = token,
-                    ExpiresAt = resetPasswordTokenExpiry,
-                    IsUsed = false,
-                    //UserId = user.Id
-                };
-
-
-
-                // TODO: generate link 
-
-                var link = "Here will be your link";
-                var link_expiry = DateTime.UtcNow.AddMinutes(30);
-
-                await emailService.SendResetPasswordLinkAsync(forgotPasswordDto.Email, link, link_expiry.ToLocalTime());
+                await emailService.SendResetPasswordLinkAsync(forgotPasswordDto.Email, link, DateTime.UtcNow.Add(token_lifespan));
 
                 var response = new ForgotPasswordResponseDto(forgotPasswordDto.Email);
 
@@ -286,6 +275,34 @@ namespace BookStoreAPI.Services.Implementations
             {
                 return ServiceResult<ForgotPasswordResponseDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError);
             }
+
+        }
+
+        public async Task<ServiceResult> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
+        {
+            try
+            {
+                var user = await userManager.FindByEmailAsync(resetPasswordDto.Email);
+
+                if (user == null)
+                    return ServiceResult.Fail();
+
+                var result = await userManager.ResetPasswordAsync(user, resetPasswordDto.Token, resetPasswordDto.Password);
+
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    return ServiceResult<ServiceResult>.Fail(errors);
+                }
+
+                return ServiceResult.Ok("Password is reset");
+
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError);
+            }
+
 
         }
     }

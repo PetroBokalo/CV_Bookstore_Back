@@ -57,11 +57,24 @@ namespace BookStoreAPI.Services
             var local_expiry = expiry.ToLocalTime();
             var from = new MailAddress(_settings.FromEmail, _settings.FromName);
             var to = new MailAddress(toEmail);
-            var subject = "Password reset";
+            var subject = "Password recovery";
             var body = $@"
                 <html>
                   <body style='font-family: Arial, sans-serif; color: #202124; line-height:1.6;'>
-                    <h3 style='color:#1a73e8; font-size:24px; letter-spacing:2px;'>{link}</h3>
+                    <h3 style='color:#202124; font-size:20px; letter-spacing:1px;'>Rassword reset</h3>
+                    <p style='color:#202124;'>Click the link below to reset your password</p>
+                    <p>
+                        <a href='{link}'
+                            style='display:inline-block;
+                                background-color:#1a73e8;
+                                color:white;
+                                padding:10px 18px;
+                                text-decoration:none;
+                                border-radius:6px;
+                                font-weight:bold;'>
+                        Reset Password
+                      </a>
+                    </p>
                     <p style='color:#202124;'>This link will expire on <b>{local_expiry:yyyy-MM-dd HH:mm:ss}</b>.</p>
                     <p style='color:#202124;'>If you didn’t request this link, please ignore this message.</p>
                   </body>

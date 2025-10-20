@@ -104,7 +104,7 @@ namespace BookStoreAPI.Controllers
 
         }
 
-        [HttpPost("forgotpassword")]
+        [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
         {
             var result = await authService.ForgotPasswordAsync(forgotPasswordDto);
@@ -115,6 +115,16 @@ namespace BookStoreAPI.Controllers
             return Ok(result.Data);
 
         }
+
+        [HttpPut("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
+        {
+            var result = await authService.ResetPasswordAsync(resetPasswordDto);
+
+            return StatusCode(result.StatusCode, new { message = result.Message });
+        }
+
+
 
 
     }

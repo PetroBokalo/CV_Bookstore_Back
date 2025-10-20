@@ -13,11 +13,13 @@ namespace BookStoreAPI.Services.Interfaces
 
         Task<(ServiceResult<AuthUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto);
 
-        Task<ServiceResult<string>> Resend(ResendDto resendDto);
+        Task<ServiceResult> Resend(ResendDto resendDto);
 
         Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken);
 
         Task<ServiceResult<ForgotPasswordResponseDto>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto);
+
+        Task<ServiceResult> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
 
     }
 }
