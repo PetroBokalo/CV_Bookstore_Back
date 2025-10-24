@@ -21,6 +21,10 @@ namespace BookStoreAPI.Services.Interfaces
 
         Task<ServiceResult> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
 
+        Task<(ServiceResult<GoogleLoginUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> GoogleLoginAsync(GoogleLoginUserDto googleLoginUserDto);
+
+        Task<ServiceResult> ProvidePhoneNumberAsync(ProvidePhoneNumberDto dto, string userId);
+
     }
 }
  

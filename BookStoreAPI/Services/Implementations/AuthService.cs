@@ -16,20 +16,23 @@ namespace BookStoreAPI.Services.Implementations
     {
         private readonly int verifyTokenAttemps = 5;
         private readonly DateTime verifyTokenExpiry = DateTime.UtcNow.AddMinutes(15);
-        private readonly DateTime resetPasswordTokenExpiry = DateTime.UtcNow.AddMinutes(30);
+        private readonly DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(7);
 
         private readonly IUserRepository userRepo;
         private readonly IVerifyTokenRepository verifyTokenRepo;
         private readonly IResetPasswordTokenRepository resetPasswordTokenRepo;
         private readonly IOptions<DataProtectionTokenProviderOptions> tokenOp;
+        private readonly IConfiguration configuration;
 
         private readonly UserManager<AppUser> userManager;
+        private readonly SignInManager<AppUser> signInManager;
 
         private readonly TokenService tokenService;
         private readonly EmailService emailService;
 
         public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService,
-            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager, IOptions<DataProtectionTokenProviderOptions> tokenOp)
+            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager, IOptions<DataProtectionTokenProviderOptions> tokenOp,
+            SignInManager<AppUser> signInManager, IConfiguration configuration)
         {
             this.userRepo = userRepo;
             this.verifyTokenRepo = verifyTokenRepo;
@@ -38,6 +41,8 @@ namespace BookStoreAPI.Services.Implementations
             this.resetPasswordTokenRepo = resetPasswordTokenRepo;
             this.userManager = userManager;
             this.tokenOp = tokenOp;
+            this.signInManager = signInManager;
+            this.configuration = configuration;
         }
 
 
@@ -50,9 +55,9 @@ namespace BookStoreAPI.Services.Implementations
                 if (user == null)
                     return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
-                
 
-                if (! await userManager.CheckPasswordAsync(user, loginUserDto.Password))
+
+                if (!await userManager.CheckPasswordAsync(user, loginUserDto.Password))
                     return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
                 if (!user.EmailConfirmed)
@@ -87,7 +92,7 @@ namespace BookStoreAPI.Services.Implementations
             {
 
                 var newUser = new AppUser()
-                { 
+                {
                     UserFirstName = registerUserDto.UserFirstName,
                     UserLastName = registerUserDto.UserLastName,
                     PhoneNumber = registerUserDto.PhoneNumber,
@@ -118,7 +123,7 @@ namespace BookStoreAPI.Services.Implementations
                     Attemps = verifyTokenAttemps,
                     Code = code,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = verifyTokenExpiry               
+                    ExpiresAt = verifyTokenExpiry
                 };
 
 
@@ -304,6 +309,89 @@ namespace BookStoreAPI.Services.Implementations
             }
 
 
+        }
+
+        public async Task<(ServiceResult<GoogleLoginUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> GoogleLoginAsync(GoogleLoginUserDto googleLoginUserDto)
+        {
+            try
+            {
+                var payload = await GoogleOAuthHelper.GetUserInfoAsync(
+                googleLoginUserDto.Code,
+                configuration["Authentication:Google:ClientId"]!,
+                configuration["Authentication:Google:ClientSecret"]!,
+                "https://localhost:7012/api/auth/google-login"
+                );
+
+                if (payload == null)
+                    return (ServiceResult<GoogleLoginUserResponseDto>.Fail(), null, null);
+
+                var user = await userManager.FindByLoginAsync("Google", payload.Subject); // payload.Subject = Google UserId
+                if (user == null)
+                {
+                    user = await userManager.FindByEmailAsync(payload.Email);
+
+                    if (user == null)
+                    {
+                        user = new AppUser
+                        {
+                            UserName = payload.Email,
+                            Email = payload.Email,
+                            EmailConfirmed = true,
+                            UserFirstName = payload.GivenName,
+                            UserLastName = payload.FamilyName,
+                            LastLogin = DateTime.UtcNow,
+                            RefreshToken = tokenService.GenerateRefreshToken(),
+                            RefreshTokenExpiry = refreshTokenExpiry,
+
+                        };
+
+                        await userManager.CreateAsync(user);
+                    }
+
+                    var info = new UserLoginInfo("Google", payload.Subject, "Google");
+                    await userManager.AddLoginAsync(user, info);
+                }
+                else if (user.RefreshTokenExpiry <= DateTime.UtcNow)
+                {
+                    var newRefreshToken = tokenService.GenerateRefreshToken();
+                    user.RefreshToken = newRefreshToken;
+                    user.RefreshTokenExpiry = refreshTokenExpiry;
+
+                    await userManager.UpdateAsync(user);
+                }
+
+                var accessToken = tokenService.GenerateAccessToken(user);
+
+                var response = new GoogleLoginUserResponseDto(accessToken, user.PhoneNumber != null);
+
+                return (ServiceResult<GoogleLoginUserResponseDto>.Ok(response, "User is found"), user.RefreshToken, user.RefreshTokenExpiry);
+            }
+            catch (Exception ex)
+            {
+                return (ServiceResult<GoogleLoginUserResponseDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError), null, null);
+            }
+
+        }
+
+        public async Task<ServiceResult> ProvidePhoneNumberAsync(ProvidePhoneNumberDto dto, string  userId)
+        {
+            try
+            {
+                var user = await userManager.FindByIdAsync(userId);
+
+                if (user == null)
+                    return ServiceResult.Fail("User not found", StatusCodes.Status404NotFound);
+
+                user.PhoneNumber = dto.PhoneNumber;
+                await userManager.UpdateAsync(user);
+
+                return ServiceResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError);
+            }
+            
         }
     }
 }

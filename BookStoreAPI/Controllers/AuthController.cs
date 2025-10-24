@@ -1,7 +1,10 @@
 ﻿using BookStoreAPI.DTOs;
 using BookStoreAPI.Services.Implementations;
 using BookStoreAPI.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace BookStoreAPI.Controllers
 {
@@ -11,10 +14,12 @@ namespace BookStoreAPI.Controllers
     public class AuthController : Controller
     {
         private readonly IAuthService authService;
+        private readonly IConfiguration configuration;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IConfiguration configuration)
         {
             this.authService = authService;
+            this.configuration = configuration;
         }
 
         [HttpPost("register")]
@@ -124,8 +129,65 @@ namespace BookStoreAPI.Controllers
             return StatusCode(result.StatusCode, new { message = result.Message });
         }
 
+        [HttpGet("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromQuery] GoogleLoginUserDto googleLoginUserDto)
+        {
+            var(result, refreshToken, expiry) = await authService.GoogleLoginAsync(googleLoginUserDto);
 
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new { message = result.Message });
+            
+            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
 
+            if (string.IsNullOrEmpty(result?.Data?.accessToken))
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate access token." });
 
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expiry
+            });
+
+            string? frontendPhoneInputURl;
+
+            if (result.Data.IsPhoneNumberProvided)
+                frontendPhoneInputURl = "http://127.0.0.1:5500/js/auth/callback.html";
+            else
+                frontendPhoneInputURl = "http://127.0.0.1:5500/js/auth/provide-phoneNumber.html";
+
+            return Redirect($"{frontendPhoneInputURl}#accessToken={result.Data.accessToken}");
+        }
+
+        [HttpGet("google")]
+        public IActionResult GoogleStart()
+        {
+            var clientId = configuration["Authentication:Google:ClientId"];
+            var redirectUri = "https://localhost:7012/api/auth/google-login";
+            var url = $"https://accounts.google.com/o/oauth2/v2/auth?client_id={clientId}&redirect_uri={redirectUri}&response_type=code&scope=openid%20email%20profile";
+
+            return Redirect(url);
+        }
+
+        [HttpPut("provide-phoneNumber")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ProvidePhoneNumber([FromBody] ProvidePhoneNumberDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null)
+                return Unauthorized("User ID not found in token.");
+
+            string userId = userIdClaim.Value;
+
+            var result = await authService.ProvidePhoneNumberAsync(dto, userId);
+
+            if (!result.Success) 
+                return StatusCode(result.StatusCode, result.Message);
+
+            return StatusCode(StatusCodes.Status204NoContent);
+        }
     }
 }
