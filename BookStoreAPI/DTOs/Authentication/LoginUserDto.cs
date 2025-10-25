@@ -1,11 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.DTOs
+namespace BookStoreAPI.DTOs.Authentication
 {
-    public class ResetPasswordDto
+    public record LoginUserDto
     {
-        [Required]
-        public string Token { get; set; } = string.Empty;
 
         [Required]
         [EmailAddress]
@@ -14,6 +12,7 @@ namespace BookStoreAPI.DTOs
         [Required]
         public string Password { get; set; } = string.Empty;
 
-
+        public bool RememberMe { get; set; } = true;
+      
     }
 }

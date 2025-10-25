@@ -1,14 +1,15 @@
 ﻿using BookStoreAPI.Common;
 using BookStoreAPI.Entities;
+using BookStoreAPI.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace BookStoreAPI.Services
+namespace BookStoreAPI.Services.Implementations
 {
-    public class TokenService
+    public class TokenService : ITokenService
     {
         private readonly IConfiguration _config;
 
@@ -38,12 +39,12 @@ namespace BookStoreAPI.Services
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-            
+
                issuer: _issuer,
                audience: _audience,
                claims: claims,
                expires: DateTime.UtcNow.AddMinutes(15),
-               signingCredentials: creds); 
+               signingCredentials: creds);
 
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -53,13 +54,13 @@ namespace BookStoreAPI.Services
         {
             var randomNumber = new byte[64];
 
-            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
 
             return Convert.ToBase64String(randomNumber);
         }
 
-        public string? GenerateVerifyToken()
+        public string GenerateVerifyToken()
         {
             var bytes = new byte[4];
             RandomNumberGenerator.Fill(bytes);
@@ -69,30 +70,6 @@ namespace BookStoreAPI.Services
             return code;
         }
 
-        public ServiceResult<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token)
-        {
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)),
-                ValidateLifetime = false,
-                ValidIssuer = _issuer,
-                ValidAudience = _audience
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-
-            if (securityToken is not JwtSecurityToken jwtSecurityToken || 
-                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-            {
-                return ServiceResult<ClaimsPrincipal>.Fail("Invalid Token");
-            }
-
-            return ServiceResult<ClaimsPrincipal>.Ok(principal, "Token is refreshed");
-        }
 
     }
 }

@@ -1,5 +1,5 @@
 ﻿using BookStoreAPI.Repositories.Interfaces;
-using BookStoreAPI.Services;
+using BookStoreAPI.Services.Implementations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -12,18 +12,15 @@ namespace BookStoreAPI.Controllers
     [ApiController]
     public class CartController : ControllerBase
     {
-        IUserRepository userRepo;
-        TokenService tokenService;
 
-        public CartController(IUserRepository userRepo, TokenService tokenService)
+        public CartController()
         {
-            this.userRepo = userRepo;
-            this.tokenService = tokenService;
+
         }
 
 
         [HttpGet("temp")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize]
         public IActionResult GetTempdata()
         {
             var email = User.FindFirst(ClaimTypes.Email)?.Value;

@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.DTOs
+namespace BookStoreAPI.DTOs.Authentication
 {
-    public class GoogleLoginUserDto
+    public record GoogleLoginUserDto
     {
         [Required]
         public string Code { get; set; } = string.Empty;

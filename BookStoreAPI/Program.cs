@@ -3,7 +3,6 @@ using BookStoreAPI.Entities;
 using BookStoreAPI.Models;
 using BookStoreAPI.Repositories.Implementations;
 using BookStoreAPI.Repositories.Interfaces;
-using BookStoreAPI.Services;
 using BookStoreAPI.Services.Implementations;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -67,12 +66,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 });
 
-builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IVerifyTokenRepository, VerifyTokenRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IResetPasswordTokenRepository, ResetPasswordTokenRepository>();
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ITokenService,TokenService>();
+builder.Services.AddScoped<IEmailService,EmailService>();
 
 // Mail config
 builder.Services.Configure<EmailSettings>(
@@ -82,8 +80,9 @@ builder.Services.AddTransient<EmailSettings>();
 // Authentication
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme; // для API
-    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // для Google login
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme; // для API
+    // options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // для Google login
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {

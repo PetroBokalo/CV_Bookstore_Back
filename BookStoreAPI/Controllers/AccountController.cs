@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BookStoreAPI.Controllers
 {
@@ -7,10 +8,11 @@ namespace BookStoreAPI.Controllers
     [Route("api/[controller]")]
     public class AccountController : Controller
     {
-        [HttpGet]
-        public IActionResult GetTempdata ()
+        [HttpGet("me")]
+        [Authorize]
+        public IActionResult GetUserdata ()
         {
-            return Ok("Here is data from backend");
+            return Ok("Here is user data");
         }
     }
 }

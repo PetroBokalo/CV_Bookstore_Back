@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.DTOs
+namespace BookStoreAPI.DTOs.Authentication
 {
     public record ForgotPasswordDto
     {

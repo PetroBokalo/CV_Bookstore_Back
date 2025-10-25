@@ -1,19 +1,18 @@
-﻿
-
-using BookStoreAPI.Models;
+﻿using BookStoreAPI.Models;
+using BookStoreAPI.Services.Interfaces;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 
-namespace BookStoreAPI.Services
+namespace BookStoreAPI.Services.Implementations
 {
-    public class EmailService
+    public class EmailService : IEmailService
     {
         private readonly EmailSettings _settings;
 
         public EmailService(IOptions<EmailSettings> settings)
         {
-            this._settings = settings.Value;
+            _settings = settings.Value;
         }
 
         public async Task SendVerificationCodeAsync(string toEmail, string code, DateTime expiry)

@@ -1,6 +1,6 @@
 ﻿
 using BookStoreAPI.Common;
-using BookStoreAPI.DTOs;
+using BookStoreAPI.DTOs.Authentication;
 
 namespace BookStoreAPI.Services.Interfaces
 {
@@ -13,9 +13,9 @@ namespace BookStoreAPI.Services.Interfaces
 
         Task<(ServiceResult<AuthUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto);
 
-        Task<ServiceResult> Resend(ResendDto resendDto);
+        Task<ServiceResult> ResendVerifyCodeAsync(ResendVerifyCodeDto resendDto);
 
-        Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken);
+        Task<ServiceResult<string>> RefreshAccessTokenAsync(string refreshtoken);
 
         Task<ServiceResult<ForgotPasswordResponseDto>> ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto);
 

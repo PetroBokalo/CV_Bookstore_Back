@@ -21,7 +21,7 @@ namespace BookStoreAPI.Repositories.Implementations
             await _dbContext.VerifyEmailTokens.AnyAsync(token => token.AppUserId == userId);
 
 
-        public async Task<VerifyEmailToken?> GetByIdAsync(int userId) =>
+        public async Task<VerifyEmailToken?> GetByUserIdAsync(int userId) =>
             await _dbContext.VerifyEmailTokens.FirstOrDefaultAsync(token => token.AppUserId == userId);
 
 

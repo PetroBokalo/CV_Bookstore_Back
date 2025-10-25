@@ -1,12 +1,14 @@
-﻿using Google.Apis.Auth;
+﻿using BookStoreAPI.Common;
+using BookStoreAPI.Services.Interfaces;
+using Google.Apis.Auth;
 using System.Text.Json.Serialization;
 
-namespace BookStoreAPI.Common
+namespace BookStoreAPI.Services
 {
-    public static class GoogleOAuthHelper
+    public static class GoogleOAuthService
     {
 
-        public static async Task<GoogleJsonWebSignature.Payload?> GetUserInfoAsync(string code, string clientId, string clientSecret,
+        public static async Task<ServiceResult<GoogleJsonWebSignature.Payload?>> GetUserInfoAsync(string code, string clientId, string clientSecret,
             string redirectUri)
         {
             using var client = new HttpClient();
@@ -23,17 +25,24 @@ namespace BookStoreAPI.Common
 
             var response = await client.SendAsync(request);
 
-            if(!response.IsSuccessStatusCode) return null; // bad practice 
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                var errorMessage = $"Google API error ({(int)response.StatusCode} {response.StatusCode}): {errorContent}";
+
+                return ServiceResult<GoogleJsonWebSignature.Payload?>.Fail(message: errorMessage, statuscode: (int)response.StatusCode);
+            }
 
             var json = await response.Content.ReadAsStringAsync();
 
             var tokenData = System.Text.Json.JsonSerializer.Deserialize<GoogleTokenResponse>(json);
 
-            if (tokenData == null)  return null; // bad practice
+            if (string.IsNullOrEmpty(tokenData?.IdToken))
+                return ServiceResult<GoogleJsonWebSignature.Payload?>.Fail("Missing idToken in response", StatusCodes.Status400BadRequest);
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(tokenData.IdToken);
 
-            return payload;
+            return ServiceResult<GoogleJsonWebSignature.Payload?>.Ok(data: payload);
 
         }
 

@@ -1,14 +1,11 @@
 ﻿using BookStoreAPI.Common;
-using BookStoreAPI.DTOs;
+using BookStoreAPI.DTOs.Authentication;
 using BookStoreAPI.Entities;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace BookStoreAPI.Services.Implementations
 {
@@ -18,30 +15,23 @@ namespace BookStoreAPI.Services.Implementations
         private readonly DateTime verifyTokenExpiry = DateTime.UtcNow.AddMinutes(15);
         private readonly DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(7);
 
-        private readonly IUserRepository userRepo;
         private readonly IVerifyTokenRepository verifyTokenRepo;
-        private readonly IResetPasswordTokenRepository resetPasswordTokenRepo;
         private readonly IOptions<DataProtectionTokenProviderOptions> tokenOp;
         private readonly IConfiguration configuration;
 
         private readonly UserManager<AppUser> userManager;
-        private readonly SignInManager<AppUser> signInManager;
 
-        private readonly TokenService tokenService;
-        private readonly EmailService emailService;
+        private readonly ITokenService tokenService;
+        private readonly IEmailService emailService;
 
-        public AuthService(IUserRepository userRepo, IVerifyTokenRepository verifyTokenRepo, TokenService tokenService, EmailService emailService,
-            IResetPasswordTokenRepository resetPasswordTokenRepo, UserManager<AppUser> userManager, IOptions<DataProtectionTokenProviderOptions> tokenOp,
-            SignInManager<AppUser> signInManager, IConfiguration configuration)
+        public AuthService(IVerifyTokenRepository verifyTokenRepo, ITokenService tokenService, IEmailService emailService, 
+            UserManager<AppUser> userManager, IOptions<DataProtectionTokenProviderOptions> tokenOp, IConfiguration configuration)
         {
-            this.userRepo = userRepo;
             this.verifyTokenRepo = verifyTokenRepo;
             this.tokenService = tokenService;
             this.emailService = emailService;
-            this.resetPasswordTokenRepo = resetPasswordTokenRepo;
             this.userManager = userManager;
             this.tokenOp = tokenOp;
-            this.signInManager = signInManager;
             this.configuration = configuration;
         }
 
@@ -90,6 +80,9 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
+                if (await userManager.FindByEmailAsync(registerUserDto.Email) != null)
+                    return ServiceResult<RegisterResponseDto>.Fail("User with this email already exists", StatusCodes.Status400BadRequest);
+
 
                 var newUser = new AppUser()
                 {
@@ -136,7 +129,7 @@ namespace BookStoreAPI.Services.Implementations
 
                 var response = new RegisterResponseDto(newUser.Id, newUser.Email);
 
-                return ServiceResult<RegisterResponseDto>.Ok(response, "User is registreted", StatusCodes.Status201Created); // code here just to see if it works
+                return ServiceResult<RegisterResponseDto>.Ok(response, "User is registreted", StatusCodes.Status201Created); 
             }
             catch (Exception ex)
             {
@@ -147,14 +140,14 @@ namespace BookStoreAPI.Services.Implementations
 
         }
 
-        public async Task<ServiceResult<string>> RefreshTokenAsync(string refreshtoken)
+        public async Task<ServiceResult<string>> RefreshAccessTokenAsync(string refreshtoken)
         {
             try
             {
                 var user = await userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshtoken);
 
                 if (user == null)
-                    return ServiceResult<string>.Fail("Invalid refresh token", StatusCodes.Status404NotFound);
+                    return ServiceResult<string>.Fail("Invalid refresh token", StatusCodes.Status401Unauthorized);
 
                 if (user.RefreshTokenExpiry <= DateTime.UtcNow)
                     return ServiceResult<string>.Fail("Refresh token is expired", StatusCodes.Status401Unauthorized);
@@ -172,10 +165,8 @@ namespace BookStoreAPI.Services.Implementations
 
         public async Task<(ServiceResult<AuthUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto)
         {
-            if (verifyDto == null)
-                return (ServiceResult<AuthUserResponseDto>.Fail("Bad data requested", StatusCodes.Status400BadRequest), null, null);
 
-            var verifytoken = await verifyTokenRepo.GetByIdAsync(verifyDto.UserId);
+            var verifytoken = await verifyTokenRepo.GetByUserIdAsync(verifyDto.UserId);
 
             if (verifytoken == null)
                 return (ServiceResult<AuthUserResponseDto>.Fail("No user found", StatusCodes.Status404NotFound), null, null);
@@ -188,7 +179,7 @@ namespace BookStoreAPI.Services.Implementations
                 verifytoken.Attemps--;
                 await verifyTokenRepo.SaveChangesAsync();
 
-                return (ServiceResult<AuthUserResponseDto>.Fail("Not valid code", StatusCodes.Status403Forbidden), null, null);
+                return (ServiceResult<AuthUserResponseDto>.Fail("Not valid code", StatusCodes.Status400BadRequest), null, null);
             }
             else
             {
@@ -223,7 +214,7 @@ namespace BookStoreAPI.Services.Implementations
 
         }
 
-        public async Task<ServiceResult> Resend(ResendDto resendDto)
+        public async Task<ServiceResult> ResendVerifyCodeAsync(ResendVerifyCodeDto resendDto)
         {
             if (resendDto.UserId < 0)
                 return ServiceResult.Fail("Invalid data", StatusCodes.Status400BadRequest);
@@ -236,7 +227,7 @@ namespace BookStoreAPI.Services.Implementations
             if (newCode == null)
                 return ServiceResult.Fail("Failed to generate verify token", StatusCodes.Status500InternalServerError);
 
-            var token = await verifyTokenRepo.GetByIdAsync(resendDto.UserId);
+            var token = await verifyTokenRepo.GetByUserIdAsync(resendDto.UserId);
             token!.ExpiresAt = verifyTokenExpiry;
             token.Attemps = verifyTokenAttemps;
             token.CreatedAt = DateTime.UtcNow;
@@ -290,14 +281,14 @@ namespace BookStoreAPI.Services.Implementations
                 var user = await userManager.FindByEmailAsync(resetPasswordDto.Email);
 
                 if (user == null)
-                    return ServiceResult.Fail();
+                    return ServiceResult.Fail("Invalid request data", StatusCodes.Status400BadRequest);
 
                 var result = await userManager.ResetPasswordAsync(user, resetPasswordDto.Token, resetPasswordDto.Password);
 
                 if (!result.Succeeded)
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    return ServiceResult<ServiceResult>.Fail(errors);
+                    return ServiceResult<ServiceResult>.Fail(errors, StatusCodes.Status400BadRequest);
                 }
 
                 return ServiceResult.Ok("Password is reset");
@@ -315,12 +306,14 @@ namespace BookStoreAPI.Services.Implementations
         {
             try
             {
-                var payload = await GoogleOAuthHelper.GetUserInfoAsync(
+                var result = await GoogleOAuthService.GetUserInfoAsync(
                 googleLoginUserDto.Code,
                 configuration["Authentication:Google:ClientId"]!,
                 configuration["Authentication:Google:ClientSecret"]!,
-                "https://localhost:7012/api/auth/google-login"
+                configuration["Authentication:Google:RedirectURL"]!
                 );
+
+                var payload = result.Data;
 
                 if (payload == null)
                     return (ServiceResult<GoogleLoginUserResponseDto>.Fail(), null, null);
@@ -383,7 +376,13 @@ namespace BookStoreAPI.Services.Implementations
                     return ServiceResult.Fail("User not found", StatusCodes.Status404NotFound);
 
                 user.PhoneNumber = dto.PhoneNumber;
-                await userManager.UpdateAsync(user);
+                var updateResult = await userManager.UpdateAsync(user);
+
+                if (!updateResult.Succeeded)
+                {
+                    var errors = string.Join(",", updateResult.Errors.Select(e => e.Description));
+                    return ServiceResult.Fail($"Failed to update phone number: {errors}", StatusCodes.Status400BadRequest);
+                }
 
                 return ServiceResult.Ok();
             }

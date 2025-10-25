@@ -1,4 +1,4 @@
-﻿using BookStoreAPI.DTOs;
+﻿using BookStoreAPI.DTOs.Authentication;
 using BookStoreAPI.Services.Implementations;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,7 +32,7 @@ namespace BookStoreAPI.Controllers
                 return StatusCode(result.StatusCode, new { message = result.Message });
 
 
-            return Created("dummy", result.Data); // замість dummy треба вказати куди йти щоб отримати доступ до клієнта (якийсь endpoint) 
+            return Created("/api/account/me", result.Data); 
 
         }
 
@@ -41,19 +41,16 @@ namespace BookStoreAPI.Controllers
         {
             var (result, refreshToken, expiry) = await authService.LoginAsync(loginUserDto);
 
-            if (!result.Success)
+            if (!result.Success && result.StatusCode == StatusCodes.Status403Forbidden)
                 return StatusCode(result.StatusCode, new { message = result.Message, userId = result?.Data?.Id, userEmail = result?.Data?.Email });
+
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new { message = result.Message});
 
             if (string.IsNullOrEmpty(refreshToken) || expiry == null)
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
 
-            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = expiry
-            });
+            SetRefreshTokenCookie(refreshToken, expiry);
 
             return Ok(result.Data);
         }
@@ -66,7 +63,7 @@ namespace BookStoreAPI.Controllers
             if (string.IsNullOrEmpty(refreshToken))
                 return Unauthorized(new {message = "Missing refresh token" });
 
-            var result = await authService.RefreshTokenAsync(refreshToken);
+            var result = await authService.RefreshAccessTokenAsync(refreshToken);
            
             if (result.Success)
                 return Ok(new { accessToken = result.Data });
@@ -85,22 +82,16 @@ namespace BookStoreAPI.Controllers
             if (string.IsNullOrEmpty(refreshToken) || expiry == null)
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
 
-            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = expiry
-            });
+            SetRefreshTokenCookie(refreshToken, expiry);
 
             return Ok(response);
 
         }
 
         [HttpPost("resend")]
-        public async Task<IActionResult> Resend([FromBody] ResendDto resendDto)
+        public async Task<IActionResult> Resend([FromBody] ResendVerifyCodeDto resendDto)
         {
-            var result = await authService.Resend(resendDto);
+            var result = await authService.ResendVerifyCodeAsync(resendDto);
 
             if (!result.Success)
                 return StatusCode(result.StatusCode, new { message = result.Message });
@@ -126,7 +117,10 @@ namespace BookStoreAPI.Controllers
         {
             var result = await authService.ResetPasswordAsync(resetPasswordDto);
 
-            return StatusCode(result.StatusCode, new { message = result.Message });
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new { message = result.Message });
+
+            return NoContent();
         }
 
         [HttpGet("google-login")]
@@ -143,20 +137,14 @@ namespace BookStoreAPI.Controllers
             if (string.IsNullOrEmpty(result?.Data?.accessToken))
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate access token." });
 
-            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = expiry
-            });
+            SetRefreshTokenCookie(refreshToken, expiry);
 
             string? frontendPhoneInputURl;
 
             if (result.Data.IsPhoneNumberProvided)
-                frontendPhoneInputURl = "http://127.0.0.1:5500/js/auth/callback.html";
+                frontendPhoneInputURl = configuration["Authentication:Google:FrontCallbackURL"]; 
             else
-                frontendPhoneInputURl = "http://127.0.0.1:5500/js/auth/provide-phoneNumber.html";
+                frontendPhoneInputURl = configuration["Authentication:Google:FrontProvidePhoneURL"];
 
             return Redirect($"{frontendPhoneInputURl}#accessToken={result.Data.accessToken}");
         }
@@ -165,14 +153,14 @@ namespace BookStoreAPI.Controllers
         public IActionResult GoogleStart()
         {
             var clientId = configuration["Authentication:Google:ClientId"];
-            var redirectUri = "https://localhost:7012/api/auth/google-login";
+            var redirectUri = configuration["Authentication:Google:RedirectURL"]; 
             var url = $"https://accounts.google.com/o/oauth2/v2/auth?client_id={clientId}&redirect_uri={redirectUri}&response_type=code&scope=openid%20email%20profile";
 
             return Redirect(url);
         }
 
         [HttpPut("provide-phoneNumber")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize]
         public async Task<IActionResult> ProvidePhoneNumber([FromBody] ProvidePhoneNumberDto dto)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -185,9 +173,23 @@ namespace BookStoreAPI.Controllers
             var result = await authService.ProvidePhoneNumberAsync(dto, userId);
 
             if (!result.Success) 
-                return StatusCode(result.StatusCode, result.Message);
+                return StatusCode(result.StatusCode, new { message = result.Message });
 
             return StatusCode(StatusCodes.Status204NoContent);
         }
+
+
+
+        private void SetRefreshTokenCookie(string refreshToken, DateTime? expiry)
+        {
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expiry
+            });
+        }
+
     }
 }

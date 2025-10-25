@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.DTOs
+namespace BookStoreAPI.DTOs.Authentication
 {
-    public class RegisterUserDto
+    public record RegisterUserDto
     {
         [Required]
         [MaxLength(50)]
