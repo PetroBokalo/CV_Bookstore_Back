@@ -32,7 +32,7 @@ namespace BookStoreAPI.Controllers
                 return StatusCode(result.StatusCode, new { message = result.Message });
 
 
-            return Created("/api/account/me", result.Data); 
+            return Accepted(result.Data);
 
         }
 
@@ -42,7 +42,7 @@ namespace BookStoreAPI.Controllers
             var (result, refreshToken, expiry) = await authService.LoginAsync(loginUserDto);
 
             if (!result.Success && result.StatusCode == StatusCodes.Status403Forbidden)
-                return StatusCode(result.StatusCode, new { message = result.Message, userId = result?.Data?.Id, userEmail = result?.Data?.Email });
+                return StatusCode(result.StatusCode, new { message = result.Message, data = result.Data});
 
             if (!result.Success)
                 return StatusCode(result.StatusCode, new { message = result.Message});
@@ -84,7 +84,7 @@ namespace BookStoreAPI.Controllers
 
             SetRefreshTokenCookie(refreshToken, expiry);
 
-            return Ok(response);
+            return Ok(response.Data);
 
         }
 
@@ -146,7 +146,7 @@ namespace BookStoreAPI.Controllers
             else
                 frontendPhoneInputURl = configuration["Authentication:Google:FrontProvidePhoneURL"];
 
-            return Redirect($"{frontendPhoneInputURl}#accessToken={result.Data.accessToken}");
+            return Redirect($"{frontendPhoneInputURl}#accessToken={result.Data.accessToken}&link={result.Data.Link}");
         }
 
         [HttpGet("google")]

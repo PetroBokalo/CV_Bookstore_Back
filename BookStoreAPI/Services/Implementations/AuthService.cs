@@ -4,6 +4,7 @@ using BookStoreAPI.Entities;
 using BookStoreAPI.Repositories.Interfaces;
 using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +15,12 @@ namespace BookStoreAPI.Services.Implementations
         private readonly int verifyTokenAttemps = 5;
         private readonly DateTime verifyTokenExpiry = DateTime.UtcNow.AddMinutes(15);
         private readonly DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+
+        private readonly string verifyEndpointLink = "/auth/verify";
+        private readonly string userProfileEndpointLink = "/account/me";
+        private readonly string provide_phoneNumberEndpointLink = "/auth/provide-phoneNumber";
+        private readonly string loginEndpointLink = "/auth/login";
+        private readonly string resetPasswordEndpointLink = "/auth/reset-password";
 
         private readonly IVerifyTokenRepository verifyTokenRepo;
         private readonly IOptions<DataProtectionTokenProviderOptions> tokenOp;
@@ -36,24 +43,27 @@ namespace BookStoreAPI.Services.Implementations
         }
 
 
-        public async Task<(ServiceResult<AuthUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> LoginAsync(LoginUserDto loginUserDto)
+        public async Task<(ServiceResult<LoginUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> LoginAsync(LoginUserDto loginUserDto)
         {
             try
             {
                 var user = await userManager.FindByEmailAsync(loginUserDto.Email);
 
                 if (user == null)
-                    return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
+                    return (ServiceResult<LoginUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
 
 
                 if (!await userManager.CheckPasswordAsync(user, loginUserDto.Password))
-                    return (ServiceResult<AuthUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
+                    return (ServiceResult<LoginUserResponseDto>.Fail("Invalid email or password", StatusCodes.Status401Unauthorized), null, null);
 
                 if (!user.EmailConfirmed)
                 {
-                    var errorResponse = new AuthUserResponseDto(user.Id, user.Email!, string.Empty, string.Empty, string.Empty, string.Empty);
-                    return (ServiceResult<AuthUserResponseDto>.Fail(errorResponse, "Email isn't verified", StatusCodes.Status403Forbidden), null, null);
+                    var errorResponse = new LoginUserResponseDto(UserId: user.Id, Email: user.Email!)
+                    {
+                        Links = new LoginLinksDto(Verification: verifyEndpointLink)
+                    };
+                    return (ServiceResult<LoginUserResponseDto>.Fail(errorResponse, "Email isn't verified", StatusCodes.Status403Forbidden), null, null);
                 }
 
                 var newAccessToken = tokenService.GenerateAccessToken(user);
@@ -65,13 +75,16 @@ namespace BookStoreAPI.Services.Implementations
 
                 await userManager.UpdateAsync(user);
 
-                var response = new AuthUserResponseDto(user.Id, user.Email!, user.PhoneNumber!, user.UserFirstName!, user.UserLastName!, newAccessToken);
+                var response = new LoginUserResponseDto(AccessToken: newAccessToken)
+                {
+                    Links = new LoginLinksDto(GetProfile: userProfileEndpointLink)
+                };
 
-                return (ServiceResult<AuthUserResponseDto>.Ok(response, "Login successful"), newRefreshToken, user.RefreshTokenExpiry);
+                return (ServiceResult<LoginUserResponseDto>.Ok(response, "Login successful"), newRefreshToken, user.RefreshTokenExpiry);
             }
             catch (Exception ex)
             {
-                return (ServiceResult<AuthUserResponseDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError), null, null);
+                return (ServiceResult<LoginUserResponseDto>.Fail("Internal server error: " + ex.Message, StatusCodes.Status500InternalServerError), null, null);
             }
 
         }
@@ -127,9 +140,12 @@ namespace BookStoreAPI.Services.Implementations
                 // send code
                 await emailService.SendVerificationCodeAsync(newUser.Email, code, verifyTokenExpiry);
 
-                var response = new RegisterResponseDto(newUser.Id, newUser.Email);
+                var response = new RegisterResponseDto(newUser.Id, newUser.Email)
+                {
+                    Links = new RegisterLinksDto(verifyEndpointLink)
+                };
 
-                return ServiceResult<RegisterResponseDto>.Ok(response, "User is registreted", StatusCodes.Status201Created); 
+                return ServiceResult<RegisterResponseDto>.Ok(response, "User is registreted", StatusCodes.Status202Accepted); 
             }
             catch (Exception ex)
             {
@@ -163,23 +179,23 @@ namespace BookStoreAPI.Services.Implementations
 
         }
 
-        public async Task<(ServiceResult<AuthUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto)
+        public async Task<(ServiceResult<VerifyResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto)
         {
 
             var verifytoken = await verifyTokenRepo.GetByUserIdAsync(verifyDto.UserId);
 
             if (verifytoken == null)
-                return (ServiceResult<AuthUserResponseDto>.Fail("No user found", StatusCodes.Status404NotFound), null, null);
+                return (ServiceResult<VerifyResponseDto>.Fail("No user found", StatusCodes.Status404NotFound), null, null);
 
             if (verifytoken.Attemps <= 0 || verifytoken.ExpiresAt <= DateTime.UtcNow || verifytoken.IsUsed)
-                return (ServiceResult<AuthUserResponseDto>.Fail("Verify token is expired", StatusCodes.Status400BadRequest), null, null);
+                return (ServiceResult<VerifyResponseDto>.Fail("Verify token is expired", StatusCodes.Status400BadRequest), null, null);
 
             if (verifytoken.Code != verifyDto.Code)
             {
                 verifytoken.Attemps--;
                 await verifyTokenRepo.SaveChangesAsync();
 
-                return (ServiceResult<AuthUserResponseDto>.Fail("Not valid code", StatusCodes.Status400BadRequest), null, null);
+                return (ServiceResult<VerifyResponseDto>.Fail("Not valid code", StatusCodes.Status400BadRequest), null, null);
             }
             else
             {
@@ -191,7 +207,7 @@ namespace BookStoreAPI.Services.Implementations
                 var user = await userManager.FindByIdAsync(verifyDto.UserId.ToString());
 
                 if (user == null)
-                    return (ServiceResult<AuthUserResponseDto>.Fail("User not found", StatusCodes.Status404NotFound), null, null);
+                    return (ServiceResult<VerifyResponseDto>.Fail("User not found", StatusCodes.Status404NotFound), null, null);
 
                 var accessToken = tokenService.GenerateAccessToken(user!);
 
@@ -207,9 +223,12 @@ namespace BookStoreAPI.Services.Implementations
 
 
 
-                AuthUserResponseDto response = new(user.Id, user.Email!, user.PhoneNumber!, user.UserFirstName!, user.UserLastName!, accessToken);
+                VerifyResponseDto response = new VerifyResponseDto(accessToken)
+                {
+                    Links = new VerifyLinksDto(userProfileEndpointLink)
+                };
 
-                return (ServiceResult<AuthUserResponseDto>.Ok(response, "User is verified"), refreshToken, expiry);
+                return (ServiceResult<VerifyResponseDto>.Ok(response, "User is verified"), refreshToken, expiry);
             }
 
         }
@@ -353,9 +372,11 @@ namespace BookStoreAPI.Services.Implementations
                     await userManager.UpdateAsync(user);
                 }
 
+                var link = user.PhoneNumber != null ? userProfileEndpointLink : provide_phoneNumberEndpointLink;
+
                 var accessToken = tokenService.GenerateAccessToken(user);
 
-                var response = new GoogleLoginUserResponseDto(accessToken, user.PhoneNumber != null);
+                var response = new GoogleLoginUserResponseDto(accessToken, user.PhoneNumber != null, Link: link);
 
                 return (ServiceResult<GoogleLoginUserResponseDto>.Ok(response, "User is found"), user.RefreshToken, user.RefreshTokenExpiry);
             }

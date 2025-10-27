@@ -2,11 +2,9 @@
 
 namespace BookStoreAPI.DTOs.Authentication
 {
-    public record RegisterResponseDto(int userId, string userEmail)
+    public record VerifyResponseDto(string AccessToken)
     {
         [JsonPropertyName("_links")]
-        public RegisterLinksDto? Links {  get; init; }
+        public VerifyLinksDto? Links { get; init; }
     }
-
 }
-
