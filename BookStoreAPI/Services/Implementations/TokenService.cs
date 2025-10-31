@@ -32,7 +32,8 @@ namespace BookStoreAPI.Services.Implementations
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email!),
-                new Claim("role", "AppUser")
+                new Claim("email_verified", user.EmailConfirmed.ToString().ToLower()),
+                new Claim("role", "AppUser") // temp
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));

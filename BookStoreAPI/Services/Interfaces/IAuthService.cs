@@ -7,13 +7,13 @@ namespace BookStoreAPI.Services.Interfaces
     public interface IAuthService
     {
 
-        Task<ServiceResult<RegisterResponseDto>> RegisterAsync(RegisterUserDto registerUserDto);
+        Task<(ServiceResult<RegisterResponseDto> Result, string? RefreshToken, DateTime? Expires)> RegisterAsync(RegisterUserDto registerUserDto);
 
         Task<(ServiceResult<LoginUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> LoginAsync(LoginUserDto loginUserDto);
 
-        Task<(ServiceResult<VerifyResponseDto> Result, string? RefreshToken, DateTime? Expires)> VerifyAsync(VerifyDto verifyDto);
+        Task<ServiceResult> VerifyAsync(VerifyDto verifyDto, int userId);
 
-        Task<ServiceResult> ResendVerifyCodeAsync(ResendVerifyCodeDto resendDto);
+        Task<ServiceResult> ResendVerifyCodeAsync(int userId);
 
         Task<ServiceResult<string>> RefreshAccessTokenAsync(string refreshtoken);
 
@@ -24,6 +24,8 @@ namespace BookStoreAPI.Services.Interfaces
         Task<(ServiceResult<GoogleLoginUserResponseDto> Result, string? RefreshToken, DateTime? Expires)> GoogleLoginAsync(GoogleLoginUserDto googleLoginUserDto);
 
         Task<ServiceResult> ProvidePhoneNumberAsync(ProvidePhoneNumberDto dto, string userId);
+
+        Task<ServiceResult> LogoutAsync(string userId);
 
     }
 }

@@ -1,5 +1,5 @@
 ﻿namespace BookStoreAPI.DTOs.Authentication
 {
-    public record VerifyDto(int UserId, string Code);
+    public record VerifyDto(string Code);
 
 }

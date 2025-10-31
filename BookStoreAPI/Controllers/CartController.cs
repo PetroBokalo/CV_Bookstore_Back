@@ -20,7 +20,7 @@ namespace BookStoreAPI.Controllers
 
 
         [HttpGet("temp")]
-        [Authorize]
+        [Authorize(Policy = "EmailVerifiedOnly")]
         public IActionResult GetTempdata()
         {
             var email = User.FindFirst(ClaimTypes.Email)?.Value;

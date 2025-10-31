@@ -26,11 +26,15 @@ namespace BookStoreAPI.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterUserDto registerUserDto)
         {
 
-            var result = await authService.RegisterAsync(registerUserDto);
+            var(result, refreshToken, expiry) = await authService.RegisterAsync(registerUserDto);
 
             if (!result.Success)
                 return StatusCode(result.StatusCode, new { message = result.Message });
 
+            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
+
+            SetRefreshTokenCookie(refreshToken, expiry);
 
             return Accepted(result.Data);
 
@@ -72,26 +76,36 @@ namespace BookStoreAPI.Controllers
         }
 
         [HttpPost("verify")]
+        [Authorize]
         public async Task<IActionResult> Verify([FromBody] VerifyDto verifyDto)
         {
-            var(response, refreshToken, expiry) = await authService.VerifyAsync(verifyDto);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new { message = response.Message });
+            if (userIdClaim == null)
+                return Unauthorized("User ID not found in token.");
 
-            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
+            string userId = userIdClaim.Value;
 
-            SetRefreshTokenCookie(refreshToken, expiry);
+            var result = await authService.VerifyAsync(verifyDto, Convert.ToInt32(userId));
 
-            return Ok(response.Data);
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new { message = result.Message });
 
+            return Accepted();
         }
 
         [HttpPost("resend")]
-        public async Task<IActionResult> Resend([FromBody] ResendVerifyCodeDto resendDto)
+        [Authorize]
+        public async Task<IActionResult> Resend()
         {
-            var result = await authService.ResendVerifyCodeAsync(resendDto);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null)
+                return Unauthorized("User ID not found in token.");
+
+            string userId = userIdClaim.Value;
+
+            var result = await authService.ResendVerifyCodeAsync(Convert.ToInt32(userId));
 
             if (!result.Success)
                 return StatusCode(result.StatusCode, new { message = result.Message });
@@ -178,7 +192,24 @@ namespace BookStoreAPI.Controllers
             return StatusCode(StatusCodes.Status204NoContent);
         }
 
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
+            if (userIdClaim == null)
+                return Unauthorized("User ID not found in token.");
+
+            string userId = userIdClaim.Value;
+
+            var result = await authService.LogoutAsync(userId);
+
+            if (!result.Success)
+                return StatusCode(result.StatusCode, new { message = result.Message });
+
+            return StatusCode(StatusCodes.Status204NoContent);
+        }
 
         private void SetRefreshTokenCookie(string refreshToken, DateTime? expiry)
         {

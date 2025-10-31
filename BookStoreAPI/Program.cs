@@ -109,6 +109,13 @@ builder.Services.AddAuthentication(options =>
     options.SaveTokens = true;
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("EmailVerifiedOnly", policy =>
+    {
+        policy.RequireClaim("email_verified", "true");
+    });
+});
 
 var app = builder.Build();
 
