@@ -59,11 +59,20 @@ namespace BookStoreAPI.Services.Implementations
 
                 if (!user.EmailConfirmed)
                 {
-                    var errorResponse = new LoginUserResponseDto(Email: user.Email!)
+                    var AccessToken = tokenService.GenerateAccessToken(user);
+                    var RefreshToken = tokenService.GenerateRefreshToken();
+
+                    user.RefreshToken = RefreshToken;
+                    user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+                    user.LastLogin = DateTime.UtcNow;
+
+                    await userManager.UpdateAsync(user);
+
+                    var errorResponse = new LoginUserResponseDto(Email: user.Email!, AccessToken: AccessToken)
                     {
                         Links = new LoginLinksDto(Verification: verifyEndpointLink)
                     };
-                    return (ServiceResult<LoginUserResponseDto>.Fail(errorResponse, "Email isn't verified", StatusCodes.Status403Forbidden), null, null);
+                    return (ServiceResult<LoginUserResponseDto>.Fail(errorResponse, "Email isn't verified", StatusCodes.Status403Forbidden), RefreshToken, user.RefreshTokenExpiry);
                 }
 
                 var newAccessToken = tokenService.GenerateAccessToken(user);
