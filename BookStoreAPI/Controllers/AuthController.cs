@@ -45,11 +45,12 @@ namespace BookStoreAPI.Controllers
         {
             var (result, refreshToken, expiry) = await authService.LoginAsync(loginUserDto);
 
-            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
-                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
 
             if (!result.Success && result.StatusCode == StatusCodes.Status403Forbidden)
             {
+                if (string.IsNullOrEmpty(refreshToken) || expiry == null)
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
+
                 SetRefreshTokenCookie(refreshToken, expiry);
                 return StatusCode(result.StatusCode, new { message = result.Message, data = result.Data });
             }
@@ -57,7 +58,9 @@ namespace BookStoreAPI.Controllers
             if (!result.Success)
                 return StatusCode(result.StatusCode, new { message = result.Message});
 
-           
+            if (string.IsNullOrEmpty(refreshToken) || expiry == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to generate refresh token." });
+
             SetRefreshTokenCookie(refreshToken, expiry);
 
             return Ok(result.Data);

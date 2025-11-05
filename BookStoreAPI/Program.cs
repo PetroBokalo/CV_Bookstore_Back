@@ -71,6 +71,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IResetPasswordTokenRepository, ResetPasswordTokenRepository>();
 builder.Services.AddScoped<ITokenService,TokenService>();
 builder.Services.AddScoped<IEmailService,EmailService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 // Mail config
 builder.Services.Configure<EmailSettings>(
