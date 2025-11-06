@@ -15,11 +15,6 @@ namespace BookStoreAPI.Data
             this.configuration = configuration;
         }
 
-        //protected override void OnConfiguring(DbContextOptionsBuilder options)
-        //{
-        //    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL"));
-        //}
-
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -42,8 +37,6 @@ namespace BookStoreAPI.Data
         public DbSet<BookGenre> BookGenres { get; set; }
 
         public DbSet<VerifyEmailToken> VerifyEmailTokens { get; set; }
-
-        public DbSet<ResetPasswordToken> ResetPasswordTokens { get; set; }
 
        
     }
