@@ -1,13 +1,13 @@
-﻿namespace BookStoreAPI.Models
+﻿namespace BookStoreAPI.Entities
 {
     public class Order
     {
 
         public int Id { get; set; }
 
-        public int UserId { get; set; }
+        public int AppUserId { get; set; }
 
-        public User User { get; set; } = null!;
+        public AppUser AppUser { get; set; } = null!;
 
         public List<OrderItem> Items { get; set; } = new();
 
