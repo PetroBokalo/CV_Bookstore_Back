@@ -1,4 +1,6 @@
-﻿namespace BookStoreAPI.Entities
+﻿
+
+namespace BookStore.Domain.Entities
 {
     public class Cart
     {
@@ -6,8 +8,6 @@
         public int Id { get; set; }
 
         public int AppUserId { get; set; }
-
-        public AppUser AppUser { get; set; } = null!;
 
         public List<CartItem> Items { get; set; } = new();
 

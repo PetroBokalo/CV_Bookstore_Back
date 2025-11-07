@@ -1,8 +1,9 @@
 ﻿
+using BookStore.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
-namespace BookStoreAPI.Entities
+namespace BookStore.Infrastructure.Identity
 {
     public class AppUser : IdentityUser<int>
     {
