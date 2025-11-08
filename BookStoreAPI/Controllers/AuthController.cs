@@ -1,12 +1,11 @@
-﻿using BookStoreAPI.DTOs.Authentication;
-using BookStoreAPI.Services.Implementations;
-using BookStoreAPI.Services.Interfaces;
+﻿using BookStore.Application.DTOs.Authentication;
+using BookStore.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace BookStoreAPI.Controllers
+namespace BookStore.Api.Controllers
 {
 
     [ApiController]

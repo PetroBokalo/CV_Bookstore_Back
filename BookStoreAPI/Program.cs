@@ -1,10 +1,11 @@
-using BookStoreAPI.Data;
-using BookStoreAPI.Entities;
-using BookStoreAPI.Models;
-using BookStoreAPI.Repositories.Implementations;
-using BookStoreAPI.Repositories.Interfaces;
+
+using BookStore.Application.Common;
+using BookStore.Application.Interfaces;
+using BookStore.Infrastructure.Identity;
+using BookStore.Infrastructure.Persistence;
+using BookStore.Infrastructure.Repositories;
+using BookStore.Infrastructure.Services;
 using BookStoreAPI.Services.Implementations;
-using BookStoreAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,7 +36,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddDbContext<BookStoreDbContext>(options => 
-    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL"))); // add database context
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL"),
+    b => b.MigrationsAssembly(typeof(BookStoreDbContext).Assembly.FullName)
+    )); // add database context
 
 builder.Services.AddIdentity<AppUser, IdentityRole<int>>(options =>
 {
