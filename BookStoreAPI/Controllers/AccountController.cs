@@ -1,9 +1,9 @@
-﻿using BookStoreAPI.Services.Interfaces;
+﻿using BookStore.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace BookStoreAPI.Controllers
+namespace BookStore.Api.Controllers
 {
 
     [ApiController]

@@ -1,16 +1,9 @@
-using BookStoreAPI.Data;
-using BookStoreAPI.Entities;
-using BookStoreAPI.Models;
-using BookStoreAPI.Repositories.Implementations;
-using BookStoreAPI.Repositories.Interfaces;
-using BookStoreAPI.Services.Implementations;
-using BookStoreAPI.Services.Interfaces;
+
+using BookStore.Application;
+using BookStore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -34,19 +27,10 @@ builder.Services.AddCors(options =>
 
 });
 
-builder.Services.AddDbContext<BookStoreDbContext>(options => 
-    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL"))); // add database context
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddIdentity<AppUser, IdentityRole<int>>(options =>
-{
-    options.Password.RequiredLength = 6;
-    options.Password.RequireDigit = false;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireNonAlphanumeric = false;
-})
-    .AddEntityFrameworkStores<BookStoreDbContext>()
-    .AddDefaultTokenProviders();
+
     
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -66,16 +50,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 });
 
-builder.Services.AddScoped<IVerifyTokenRepository, VerifyTokenRepository>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ITokenService,TokenService>();
-builder.Services.AddScoped<IEmailService,EmailService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
 
-// Mail config
-builder.Services.Configure<EmailSettings>(
-    builder.Configuration.GetSection("EmailSettings"));
-builder.Services.AddTransient<EmailSettings>();
 
 // Authentication
 builder.Services.AddAuthentication(options =>
